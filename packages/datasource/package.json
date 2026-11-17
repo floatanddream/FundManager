@@ -1,0 +1,16 @@
+{
+  "name": "@fundmanager/datasource",
+  "version": "0.0.0",
+  "private": true,
+  "description": "外部数据源适配层：抓取、解析、缓存、降级",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@fundmanager/shared": "workspace:*",
+    "zod": "^4.6.7"
+  }
+}

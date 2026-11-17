@@ -1,0 +1,47 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+build/
+*.tsbuildinfo
+
+# ⚠️ 个人持仓数据 —— 绝对不要提交
+# 这是私人财务数据，仓库可能公开
+data/
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite3
+!data/.gitkeep
+
+# 本地配置（可能含成本价、账户信息）
+.env
+.env.*
+!.env.example
+config.local.*
+*.local.json
+
+# 导出与备份
+exports/
+backups/
+
+# 日志
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# 编辑器和系统
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 测试与覆盖率
+coverage/
+.vitest-cache/

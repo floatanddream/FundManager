@@ -1,0 +1,17 @@
+{
+  "name": "@fundmanager/server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Fastify 后端：HTTP API + 定时任务 CLI",
+  "type": "module",
+  "main": "./src/index.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@fundmanager/core": "workspace:*",
+    "@fundmanager/datasource": "workspace:*",
+    "@fundmanager/shared": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.8",
+    "node-notifier": "^12.1.0"
+  }
+}
