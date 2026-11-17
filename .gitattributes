@@ -1,0 +1,50 @@
+# ── 换行符：统一为 LF ──────────────────────────────────────────
+#
+# 两个理由：
+# 1. 本机 core.autocrlf=true，检出时会把文件变成 CRLF，而 Prettier 默认要求 LF。
+#    两者冲突的结果是 pnpm format 会改写每个文件、git status 长期一片红，
+#    真实改动被淹没在噪音里。
+# 2. 本项目开源自托管，Windows 与 Mac/Linux 的贡献者混用，
+#    不统一行尾会让 diff 互相打架。
+#
+# .gitattributes 的优先级高于 core.autocrlf，故这里声明即生效。
+* text=auto eol=lf
+
+# ── 文本文件（明确声明，避免被误判） ────────────────────────────
+*.ts     text
+*.tsx    text
+*.js     text
+*.mjs    text
+*.json   text
+*.md     text
+*.css    text
+*.html   text
+*.svg    text
+*.yaml   text
+*.yml    text
+*.toml   text
+*.sql    text
+
+# ── 二进制文件（禁止行尾转换，否则会损坏文件） ──────────────────
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.webp   binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.otf    binary
+*.pdf    binary
+*.db     binary
+*.sqlite binary
+
+# ── 锁文件与生成物：折叠 diff ──────────────────────────────────
+# 锁文件逐行 diff 没有阅读价值，且在 GitHub 上会被计为语言统计
+pnpm-lock.yaml  -diff linguist-generated
+
+# ── 归档时排除 ────────────────────────────────────────────────
+.gitattributes  export-ignore
+.gitignore      export-ignore
+.github/        export-ignore
