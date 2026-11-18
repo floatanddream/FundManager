@@ -1009,7 +1009,7 @@ EOF
 - `TWR = Π(1 + r_i) - 1`
 - `points` 须按日期升序传入（调用方负责，本函数不排序，但**校验日期合法性**）
 - 无解条件：`points.length < 2`；任一子区间分母 `<= 0`
-- **日期非法或 value/flow 非有限数 → 抛 TypeError**
+- **日期非法 → 抛 TypeError**。不为 `value/flow` 非有限数（`NaN`）写守卫——正常使用中不会出现，数据源层由 Zod 兜住（见 `docs/CONSTRAINTS.md` §8.8）
 
 - [ ] **Step 1: 写失败的测试**
 
@@ -1078,14 +1078,6 @@ describe('TWR 时间加权收益', () => {
     ]
     expect(() => timeWeightedReturn(points)).toThrow(TypeError)
   })
-
-  it('市值非有限数抛异常', () => {
-    const points: ValuationPoint[] = [
-      { date: '2024-01-01', value: 1000, flow: 0 },
-      { date: '2024-07-01', value: Number.NaN, flow: 0 },
-    ]
-    expect(() => timeWeightedReturn(points)).toThrow(TypeError)
-  })
 })
 ```
 
@@ -1117,16 +1109,15 @@ export type ValuationPoint = {
  *
  * @param points 估值点序列。调用方须保证按日期升序，本函数不排序（但校验日期合法性）
  * @returns 区间累计收益率；无解时返回 null
- * @throws {TypeError} 日期非法，或 value/flow 不是有限数
+ * @throws {TypeError} 日期非法
  */
 export function timeWeightedReturn(points: readonly ValuationPoint[]): number | null {
   // 先整体校验再计算：宁可一开始就拒掉坏数据，
-  // 也不要算到一半才发现，那时错误已混进结果
+  // 也不要算到一半才发现，那时错误已混进结果。
+  // 只校验日期——value/flow 非有限数（NaN）在正常使用中不会出现，
+  // 且数据源层会用 Zod 兜住，此处不为它写守卫（见 CONSTRAINTS §8.8）
   for (const p of points) {
     assertDate(p.date, 'ValuationPoint.date')
-    if (!Number.isFinite(p.value) || !Number.isFinite(p.flow)) {
-      throw new TypeError(`ValuationPoint 的 value/flow 必须是有限数，收到 value=${p.value}`)
-    }
   }
   if (points.length < 2) return null
 
@@ -1149,7 +1140,7 @@ export function timeWeightedReturn(points: readonly ValuationPoint[]): number | 
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `pnpm vitest run packages/core/src/returns/twr.test.ts`
-Expected: PASS，8 个测试通过
+Expected: PASS，7 个测试通过
 
 - [ ] **Step 5: 更新包出口并跑全量验证**
 
@@ -1161,12 +1152,13 @@ export type { ValuationPoint } from './returns/twr.ts'
 ```
 
 Run: `pnpm test && pnpm typecheck && pnpm format`
-Expected: 全部 45 个测试通过（number 5 + date 10 + price 7 + cashflow 6 + xirr 9 + twr 8），类型检查无错误，格式化无改动或仅有格式化改动
+Expected: 全部 44 个测试通过（number 5 + date 10 + price 7 + cashflow 6 + xirr 9 + twr 7），类型检查无错误，格式化无改动或仅有格式化改动
 
 - [ ] **Step 6: 提交**
 
 ```bash
-git add -A
+# 只 add 本任务文件。禁止 git add -A——同一工作目录可能有其他 agent 的在途改动
+git add packages/core/src/returns/twr.ts packages/core/src/returns/twr.test.ts packages/core/src/index.ts
 git commit -F - <<'EOF'
 feat: 实现 TWR 时间加权收益
 
