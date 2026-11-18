@@ -16,9 +16,9 @@ export type ValuationPoint = {
  *
  * 中途追加投入不影响结果——这正是它相对「总收益 ÷ 总投入」的意义所在。
  *
- * @param points 估值点序列。调用方须保证按日期升序，本函数不排序（但校验日期合法性）
+ * @param points 估值点序列。日期须严格升序（同日重复亦非法），本函数校验、不排序
  * @returns 区间累计收益率；无解时返回 null
- * @throws {TypeError} 日期非法
+ * @throws {TypeError} 日期非法，或日期非严格升序
  */
 export function timeWeightedReturn(points: readonly ValuationPoint[]): number | null {
   // 先整体校验再计算：宁可一开始就拒掉坏数据，
@@ -27,6 +27,16 @@ export function timeWeightedReturn(points: readonly ValuationPoint[]): number | 
   // 且数据源层会用 Zod 兜住，此处不为它写守卫（见 CONSTRAINTS §8.8）
   for (const p of points) {
     assertDate(p.date, 'ValuationPoint.date')
+  }
+  // 日期非严格升序会让相邻子区间按错的时点相除，静默算出看着合理的错值；
+  // 同日重复亦非法：相邻日收益按输入顺序相除，同日两点无意义。
+  // assertDate 已保证 YYYY-MM-DD 定长格式，故字典序即时间序。
+  for (let i = 1; i < points.length; i++) {
+    if (points[i]!.date <= points[i - 1]!.date) {
+      throw new TypeError(
+        `ValuationPoint.date 须严格升序，收到：${points[i - 1]!.date} → ${points[i]!.date}`,
+      )
+    }
   }
   if (points.length < 2) return null
 

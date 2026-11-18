@@ -1007,9 +1007,9 @@ EOF
 - 对 `i >= 1`：子区间收益 `r_i = points[i].value / (points[i-1].value + points[i].flow) - 1`
   - `value` 为当日**收盘后**市值；`flow` 为当日**净现金流**（正为追加投入，负为取出），视作发生于当日期初之前，故计入分母
 - `TWR = Π(1 + r_i) - 1`
-- `points` 须按日期升序传入（调用方负责，本函数不排序，但**校验日期合法性**）
+- `points` 须按日期升序传入（调用方负责不排序，本函数**校验日期合法性与升序性**，违反即抛 `TypeError`）
 - 无解条件：`points.length < 2`；任一子区间分母 `<= 0`
-- **日期非法 → 抛 TypeError**。不为 `value/flow` 非有限数（`NaN`）写守卫——正常使用中不会出现，数据源层由 Zod 兜住（见 `docs/CONSTRAINTS.md` §8.8）
+- **日期非法，或日期非严格升序 → 抛 TypeError**（同日重复亦非法：相邻日收益按输入顺序相除，同日两点无意义）。不为 `value/flow` 非有限数（`NaN`）写守卫——正常使用中不会出现，数据源层由 Zod 兜住（见 `docs/CONSTRAINTS.md` §8.8）
 
 - [ ] **Step 1: 写失败的测试**
 
@@ -1078,6 +1078,14 @@ describe('TWR 时间加权收益', () => {
     ]
     expect(() => timeWeightedReturn(points)).toThrow(TypeError)
   })
+
+  it('日期非升序抛异常', () => {
+    const points: ValuationPoint[] = [
+      { date: '2024-07-01', value: 1000, flow: 0 },
+      { date: '2024-01-01', value: 1100, flow: 0 },
+    ]
+    expect(() => timeWeightedReturn(points)).toThrow(TypeError)
+  })
 })
 ```
 
@@ -1107,9 +1115,9 @@ export type ValuationPoint = {
  *
  * 中途追加投入不影响结果——这正是它相对「总收益 ÷ 总投入」的意义所在。
  *
- * @param points 估值点序列。调用方须保证按日期升序，本函数不排序（但校验日期合法性）
+ * @param points 估值点序列。日期须严格升序（同日重复亦非法），本函数校验、不排序
  * @returns 区间累计收益率；无解时返回 null
- * @throws {TypeError} 日期非法
+ * @throws {TypeError} 日期非法，或日期非严格升序
  */
 export function timeWeightedReturn(points: readonly ValuationPoint[]): number | null {
   // 先整体校验再计算：宁可一开始就拒掉坏数据，
@@ -1118,6 +1126,16 @@ export function timeWeightedReturn(points: readonly ValuationPoint[]): number | 
   // 且数据源层会用 Zod 兜住，此处不为它写守卫（见 CONSTRAINTS §8.8）
   for (const p of points) {
     assertDate(p.date, 'ValuationPoint.date')
+  }
+  // 日期非严格升序会让相邻子区间按错的时点相除，静默算出看着合理的错值；
+  // 同日重复亦非法：相邻日收益按输入顺序相除，同日两点无意义。
+  // assertDate 已保证 YYYY-MM-DD 定长格式，故字典序即时间序。
+  for (let i = 1; i < points.length; i++) {
+    if (points[i]!.date <= points[i - 1]!.date) {
+      throw new TypeError(
+        `ValuationPoint.date 须严格升序，收到：${points[i - 1]!.date} → ${points[i]!.date}`,
+      )
+    }
   }
   if (points.length < 2) return null
 
@@ -1140,7 +1158,7 @@ export function timeWeightedReturn(points: readonly ValuationPoint[]): number | 
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `pnpm vitest run packages/core/src/returns/twr.test.ts`
-Expected: PASS，7 个测试通过
+Expected: PASS，8 个测试通过
 
 - [ ] **Step 5: 更新包出口并跑全量验证**
 

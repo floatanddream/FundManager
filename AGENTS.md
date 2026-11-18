@@ -74,19 +74,9 @@ FundManager/
 
 ## 当前状态
 
-**没有任何业务代码。** 目前只有：
-
-```
-README.md              项目说明 + 免责声明
-LICENSE                MIT
-.gitignore             已屏蔽个人数据
-AGENTS.md              本文件
-docs/CONSTRAINTS.md    权威约束
-package.json           空脚手架
-pnpm-workspace.yaml    空脚手架
-```
-
-未安装依赖、**尚未 `git init`**（使用者明确要求暂不初始化，不要擅自执行）。
+git 已初始化，依赖已装齐。`packages/shared`（数值/日期工具 + 三种价格类型）与
+`packages/core`（`normalizeFlows` / `npv` / `xirr` / `timeWeightedReturn`）已实现并提交，
+计划 1 的四个任务完成。下一步：计划 2（`docs/superpowers/plans/2026-11-18-risk-metrics.md`）。
 
 新增文件前先确认目录约定（见上），不要凭空造结构。
 

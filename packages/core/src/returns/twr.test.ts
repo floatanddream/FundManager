@@ -31,3 +31,8 @@ it('日期非法抛异常', () => {
   const bad = [pt('2024-01-01', 1000), pt('2024-13-01', 1100)]
   expect(() => timeWeightedReturn(bad)).toThrow(TypeError)
 })
+
+it('日期非升序抛异常', () => {
+  const outOfOrder = [pt('2024-07-01', 1000), pt('2024-01-01', 1100)]
+  expect(() => timeWeightedReturn(outOfOrder)).toThrow(TypeError)
+})
