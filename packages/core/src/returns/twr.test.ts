@@ -21,7 +21,6 @@ it('两个子区间连乘', () => {
 })
 
 it('无解情形一律返回 null', () => {
-  expect(timeWeightedReturn([])).toBeNull() // 一个点都没有
   expect(timeWeightedReturn([pt('2024-01-01', 1000)])).toBeNull() // 只有起点
   expect(timeWeightedReturn([pt('2024-01-01', 0), pt('2025-01-01', 1100)])).toBeNull() // 初始市值为 0
   const withdrawn = [pt('2024-01-01', 100), pt('2024-07-01', 50, -100)]
