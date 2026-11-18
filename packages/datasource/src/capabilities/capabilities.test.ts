@@ -210,3 +210,55 @@ it('assetAllocation：货币基金的 pingzhongdata 备源装的是份额流量�
   ])
   await expect(dataSource(http).assetAllocation('000001')).rejects.toThrow(/货币基金/)
 })
+
+/** 无报告期的年份：接口返回空 content（实测 year=1990 → content:""） */
+const jjccEmptyYear = 'var apidata={ content:"",arryear:[2025],curyear:2026 }'
+/** 把真实 fixture 的报告期整体挪到上一年，用来验「年初退一年」拿到的是上一年那一期 */
+const jjccPrevYear = fixture('jjcc/000001-2026.html').replaceAll('2026', '2025')
+
+it('holdings：now 固定在年初且未指定年份时，取到的是上一年那一期，而非空/当年', async () => {
+  const http = httpRouting([
+    ['year=2025', jjccPrevYear],
+    ['year=2026', jjccEmptyYear],
+  ])
+  const r = await dataSource(http).holdings('000001', { now: () => new Date(2026, 0, 5) })
+  expect(r.value.reportDate).toBe('2025-09-30') // 当年无报告期 → 退一年，且没崩、没给 2026
+})
+
+it('holdings：指定月份未命中时抛错，错误里列出实际可用报告期，不退回别的期', async () => {
+  const http = httpRouting([['type=jjcc', fixture('jjcc/000001-2026.html')]])
+  const call = dataSource(http).holdings('000001', { year: 2026, month: 12 })
+  await expect(call).rejects.toThrow(DataSourceError)
+  await expect(call).rejects.toThrow(/没有 12 月对应的报告期.*2026-09-30/)
+})
+
+it('holdings：显式指定年份时，当年无报告期一律抛错，不回退上一年（也不靠 [0]! 取到 undefined）', async () => {
+  const http = httpRouting([
+    ['year=2025', jjccPrevYear], // 若错误地退回上一年，会拿到这一期
+    ['year=2026', jjccEmptyYear],
+  ])
+  await expect(dataSource(http).holdings('000001', { year: 2026 })).rejects.toThrow(
+    /没有任何报告期/,
+  )
+})
+
+it('industryAllocation / financials：默认年份取自注入的 now，而非挂钟', async () => {
+  const seen: string[] = []
+  const http = new HttpClient({
+    minIntervalMs: 0,
+    maxRetries: 0,
+    fetch: async (url) => {
+      seen.push(String(url))
+      return new Response(
+        String(url).includes('HYPZ')
+          ? fixture('api_fund_hypz/000001-2026.json')
+          : fixture('api_fund_cwzb/000001.json'),
+      )
+    },
+  })
+  const ds = dataSource(http)
+  const now = () => new Date(2019, 0, 5) // 用 2019 断开与当前挂钟年（2026）的联系，才能证明确实读了注入值
+  await ds.industryAllocation('000001', { now })
+  await ds.financials('000001', { now })
+  expect(seen.map((u) => new URL(u).searchParams.get('year'))).toEqual(['2019', '2019'])
+})

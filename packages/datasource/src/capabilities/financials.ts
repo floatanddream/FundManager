@@ -21,9 +21,10 @@ export function financials(
   http: HttpClient,
   cache: CacheStore,
   fundCode: string,
-  opts: { year?: number } = {},
+  opts: { year?: number; now?: () => Date } = {},
 ): Promise<Fetched<FinancialReport>> {
-  const year = opts.year ?? new Date().getFullYear()
+  const now = opts.now ?? (() => new Date())
+  const year = opts.year ?? now().getFullYear()
   return fetchWithFallback<FinancialReport>({
     key: `financials:${fundCode}:${year}`,
     ttlMs: 30 * DAY_MS,

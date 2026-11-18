@@ -26,9 +26,10 @@ export function industryAllocation(
   http: HttpClient,
   cache: CacheStore,
   fundCode: string,
-  opts: { year?: number } = {},
+  opts: { year?: number; now?: () => Date } = {},
 ): Promise<Fetched<readonly IndustryQuarter[]>> {
-  const year = opts.year ?? new Date().getFullYear()
+  const now = opts.now ?? (() => new Date())
+  const year = opts.year ?? now().getFullYear()
   return fetchWithFallback<readonly IndustryQuarter[]>({
     key: `industry:${fundCode}:${year}`,
     ttlMs: 7 * DAY_MS,

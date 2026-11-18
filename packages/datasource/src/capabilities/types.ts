@@ -110,20 +110,29 @@ export interface FundDataSource {
   profile(fundCode: string): Promise<Fetched<FundProfilePage>>
 
   /**
-   * 持仓。默认取最新报告期；给 `month` 则取命中的那期。
+   * 持仓。默认取最新报告期；给 `month` 则取命中的那期（命中不了就抛，不悄悄换成别的期）。
+   *
+   * `year` 缺省时由当前年份推定；年初查当年可能无报告期，此时会退回上一年（仅在 `year` 未显式给出时）。
+   * `now` 注入当前时刻，只用于把「默认取哪一年」固定下来以便测试；缺省用真实时钟。
    *
    * `loss` 在两种情况下非 null，文案可区分成因（Review Focus #4）：
    * 主源命中但该期本就非全量（季报/`topline` 截断），或主源失败降级到移动端（只给前十大）。
+   *
+   * @throws {DataSourceError} 全部来源失败且无缓存旧值；或指定了 `month`/空年份而拿不到对应报告期
    */
   holdings(
     fundCode: string,
-    opts?: { readonly year?: number; readonly month?: number },
+    opts?: { readonly year?: number; readonly month?: number; readonly now?: () => Date },
   ): Promise<Fetched<HoldingPeriod>>
 
-  /** 行业配置（基金维度，国民经济行业分类）。**无备源**（个股维度 `f127` 口径不同，不可相代）。 */
+  /**
+   * 行业配置（基金维度，国民经济行业分类）。**无备源**（个股维度 `f127` 口径不同，不可相代）。
+   *
+   * `now` 仅在 `year` 缺省时用于推定年份（注入以便测试），缺省用真实时钟。
+   */
   industryAllocation(
     fundCode: string,
-    opts?: { readonly year?: number },
+    opts?: { readonly year?: number; readonly now?: () => Date },
   ): Promise<Fetched<readonly IndustryQuarter[]>>
 
   /**
@@ -145,8 +154,15 @@ export interface FundDataSource {
     opts?: { readonly pageSize?: number },
   ): Promise<Fetched<AnnouncementPage>>
 
-  /** 财务指标（列式字典归一后的按报告期行）。**无备源**。 */
-  financials(fundCode: string, opts?: { readonly year?: number }): Promise<Fetched<FinancialReport>>
+  /**
+   * 财务指标（列式字典归一后的按报告期行）。**无备源**。
+   *
+   * `now` 仅在 `year` 缺省时用于推定年份（注入以便测试），缺省用真实时钟。
+   */
+  financials(
+    fundCode: string,
+    opts?: { readonly year?: number; readonly now?: () => Date },
+  ): Promise<Fetched<FinancialReport>>
 
   /** 换手率（翻页取全）。**无备源**。 */
   turnover(fundCode: string): Promise<Fetched<TurnoverResult>>
