@@ -76,9 +76,11 @@ FundManager/
 
 git 已初始化，依赖已装齐。`packages/shared`（数值/日期工具 + 三种价格类型）与
 `packages/core`（`normalizeFlows` / `npv` / `xirr` / `timeWeightedReturn`）已实现并提交，
-计划 1 的四个任务完成。**当前进行中：计划 3（数据源层
-`packages/datasource`，`docs/superpowers/plans/2026-11-18-datasource.md`）**，10 个任务。
-计划 2（`core` 风险指标）已写好、未执行。
+计划 1 的四个任务完成。**计划 3（数据源层 `packages/datasource`）已完成**：20 个端点接入、
+按能力取数、缓存与降级（`stale` / `loss` 两个标记）、fixture 与契约测试两层。
+
+**下一步看 `docs/ROUTE.md`（通往 MVP 的路线图）**——那里有各计划的状态、依赖与顺序。
+当前队列：计划 4（账本与持久化）、计划 2（`core` 风险指标，已写好未执行）。
 
 新增文件前先确认目录约定（见上），不要凭空造结构。
 
