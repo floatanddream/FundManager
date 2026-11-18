@@ -93,7 +93,7 @@ packages/datasource/
 
 `qt.gtimg.cn` 返回 GBK，这一条不成立整个腾讯行情族就没法做，必须先证。
 
-Run: `node -e "console.log(new TextDecoder('gbk').decode(new Uint8Array([0xbb, 0xa6, 0xb6, 0xab, 0x33, 0x30, 0x30])))"`
+Run: `node -e "console.log(new TextDecoder('gbk').decode(new Uint8Array([0xbb, 0xa6, 0xc9, 0xee, 0x33, 0x30, 0x30])))"`
 Expected: 打出 `沪深300`。若抛 `RangeError`，说明本机 Node 无 GBK 支持，**停下来报告**——需要引入解码依赖，那是本计划之外的决策。
 
 - [ ] **Step 2: 写失败的测试**
@@ -128,7 +128,7 @@ it('网络失败会重试，重试耗尽才抛', async () => {
 })
 
 it('按 charset 解码 GBK 并去掉 UTF-8 BOM', async () => {
-  const gbk = new Uint8Array([0xbb, 0xa6, 0xb6, 0xab, 0x33, 0x30, 0x30])
+  const gbk = new Uint8Array([0xbb, 0xa6, 0xc9, 0xee, 0x33, 0x30, 0x30])
   const bom = new Uint8Array([0xef, 0xbb, 0xbf, 0x61])
   const c = new HttpClient({
     fetch: fakeFetch(new Response(gbk), new Response(bom)),
