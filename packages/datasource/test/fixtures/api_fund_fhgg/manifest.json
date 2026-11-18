@@ -1,0 +1,21 @@
+{
+  "endpoint": "f10/FHGG",
+  "files": [
+    {
+      "file": "000001.json",
+      "sourceUrl": "https://api.fund.eastmoney.com/f10/FHGG?fundcode=000001&pageSize=10&pageIndex=1",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T15:53:45+08:00",
+      "dataAsOf": "2025-09-18",
+      "requestHeaders": {
+        "Referer": "https://fundf10.eastmoney.com/fhsp_000001.html"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 3023,
+      "sha256": "6c4ce35d9e25634a682dde391ffe886771f8726a0b0ee0e28545eede0cfb0fad",
+      "notes": "分红送配公告元数据，共 TotalCount=15 条，本页取 10 条。注意本端点**不含**每份分红金额与登记日——结构化金额在 lsjz 的附加字段或 fhsp HTML 页。PUBLISHDATE 带 T00:00:00，本层取 PUBLISHDATEDesc。未显式设置 User-Agent（curl 默认）；Referer 必需。"
+    }
+  ]
+}

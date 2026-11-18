@@ -1,0 +1,21 @@
+{
+  "endpoint": "f10/JJHSL/",
+  "files": [
+    {
+      "file": "000001.json",
+      "sourceUrl": "https://api.fund.eastmoney.com/f10/JJHSL/?fundcode=000001&pageindex=1&pagesize=5",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T15:53:45+08:00",
+      "dataAsOf": "2026-06-30",
+      "requestHeaders": {
+        "Referer": "https://fundf10.eastmoney.com/jjhsl_000001.html"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 350,
+      "sha256": "8c3245ccc76f5f52785f6789c6476dade8cd179581b0dab6f18311bc87d5f26e",
+      "notes": "换手率（股票周转率），TotalCount=44，本页取 5 条；报告期为半年度（06-30 / 12-31）。STOCKTURNOVER 单位未实测（218.01 这类量级看是百分数），本层原样保留、不换算。路径带尾斜杠，参数名是全小写 pageindex / pagesize。未显式设置 User-Agent（curl 默认）；Referer 必需。"
+    }
+  ]
+}

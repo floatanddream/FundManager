@@ -1,0 +1,21 @@
+{
+  "endpoint": "f10/HYPZ/",
+  "files": [
+    {
+      "file": "000001-2026.json",
+      "sourceUrl": "https://api.fund.eastmoney.com/f10/HYPZ/?fundCode=000001&year=2026",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T15:53:13+08:00",
+      "dataAsOf": "2026-09-30",
+      "requestHeaders": {
+        "Referer": "https://fundf10.eastmoney.com/hytz_000001.html"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 5324,
+      "sha256": "eeab38c57c4f0f38aa0c134e0517bd25e7eb4c67bc6744ce6f5b3f11a7189a05",
+      "notes": "Data.QuarterInfos 含 2026 年 3 个季度（Q3 报告期 2026-09-30 在前），每季度 HYPZInfo[] 为行业占比。HYMC 是国民经济行业分类（「制造业」「信息传输、软件和信息技术服务业」），与 push2 的 f127（「白酒Ⅱ」）口径不同。Data 下另有 Curyear / ListYears（字符串年份数组），本层未解析。未显式设置 User-Agent（curl 默认）；Referer 必需。"
+    }
+  ]
+}

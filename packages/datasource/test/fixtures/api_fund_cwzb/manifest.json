@@ -1,0 +1,21 @@
+{
+  "endpoint": "f10/GetArrayCwzb",
+  "files": [
+    {
+      "file": "000001.json",
+      "sourceUrl": "https://api.fund.eastmoney.com/f10/GetArrayCwzb?fundcode=000001&showtype=0&year=2026",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T15:53:45+08:00",
+      "dataAsOf": "2026-06-30",
+      "requestHeaders": {
+        "Referer": "https://fundf10.eastmoney.com/cwzb_000001.html"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 930,
+      "sha256": "9a62b75e0cfed474eb34ef5d8cabbb456a7f6710e3c9abe01bacc5f48df86354",
+      "notes": "Data.data 是**列式字典**（FSRQ/COMPROFIT/NETPROFIT/UNITPROFIT/NGROWTH/FNGROWTH/DISPROFIT/DIFUNTIPROFIT/ENDNAV/ENDUNITNAV/FCNGROWTH 十列按索引对齐），不是行式数组。数值是带千分位的字符串（\"194,068,592.02\"）、比率带百分号（\"45.28%\"）。Data 下另有 years（数字年份数组）与 year，本层未解析。另实测：查无数据的年份（year=1999）返回的不是空数组，而是一行全空串的占位行（FSRQ:[\"\"]）——该形状未固化为 fixture，测试内联构造。未显式设置 User-Agent（curl 默认）；Referer 必需。"
+    }
+  ]
+}

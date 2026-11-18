@@ -9,3 +9,7 @@ apps/web/
 # 手写文档，不重排
 docs/
 *.md
+
+# 端点原始响应 fixture：必须逐字节保留（manifest.json 的 sha256 是对它的校验，
+# 且编码陷阱只有原始字节才暴露），格式化会破坏它
+packages/datasource/test/fixtures/**

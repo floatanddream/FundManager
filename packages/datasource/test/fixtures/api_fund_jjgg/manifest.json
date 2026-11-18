@@ -1,0 +1,21 @@
+{
+  "endpoint": "f10/JJGG",
+  "files": [
+    {
+      "file": "000001.json",
+      "sourceUrl": "https://api.fund.eastmoney.com/f10/JJGG?fundcode=000001&pageIndex=1&pageSize=10&type=0",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T15:53:45+08:00",
+      "dataAsOf": "2026-11-06",
+      "requestHeaders": {
+        "Referer": "https://fundf10.eastmoney.com/jjgg_000001.html"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 2858,
+      "sha256": "7d7542bd5e86f83cff435f54ef3cb48f63aa8632da82f2b9c11b10e4b980b7b9",
+      "notes": "全部公告列表，TotalCount=1694，本页取 10 条；字段与 FHGG 完全相同。type 参数控制公告分类（此页 fhsp 用 type 过滤），取值枚举未穷举，此处用 0。内容天天变，是「最易过期」的一个 fixture。未显式设置 User-Agent（curl 默认）；Referer 必需。"
+    }
+  ]
+}

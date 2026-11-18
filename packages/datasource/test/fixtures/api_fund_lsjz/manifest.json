@@ -1,0 +1,37 @@
+{
+  "endpoint": "f10/lsjz",
+  "files": [
+    {
+      "file": "000001-dividend.json",
+      "sourceUrl": "https://api.fund.eastmoney.com/f10/lsjz?fundCode=000001&pageIndex=1&pageSize=20&startDate=2025-09-19&endDate=2025-09-23",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T15:52:54+08:00",
+      "dataAsOf": "2025-09-23",
+      "requestHeaders": {
+        "Referer": "https://fundf10.eastmoney.com/jjjz_000001.html"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 868,
+      "sha256": "43830fe482c6842c5ad9f2544670795fcbb1877f803208407e9ea8b3921dba51",
+      "notes": "覆盖含分红事件的窗口：2025-09-22 一行带 FHFCZ=0.01 / FHFCZ10=0.1 / FHFCBZ=\"0\" / FHSP=\"每10份派现金0.1000元\"。另两行无事件，用于验证 FHFCZ10 在无事件时是 null 而非空串（FHFCZ / FHFCBZ 是空串）。未显式设置 User-Agent（curl 8.22.0 默认），本端点不需要 UA；Referer 必需，缺它返回 HTTP 200 + ErrCode:-999。"
+    },
+    {
+      "file": "510300-split.json",
+      "sourceUrl": "https://api.fund.eastmoney.com/f10/lsjz?fundCode=510300&pageIndex=1&pageSize=20&startDate=2012-05-09&endDate=2012-05-14",
+      "fundCode": "510300",
+      "capturedAt": "2026-11-18T15:53:05+08:00",
+      "dataAsOf": "2012-05-11",
+      "requestHeaders": {
+        "Referer": "https://fundf10.eastmoney.com/jjjz_510300.html"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 461,
+      "sha256": "4df276da65c541d880c980d7da9ca4d24b4ba906278094614beff259abade733",
+      "notes": "覆盖份额折算：2012-05-11 一行带 FHFCZ=0.37094933 / FHFCZ10=0.37094933 / FHFCBZ=\"106\" / FHSP=\"每份基金份额折算0.37094933份\"。FHFCBZ 取值语义仅此两个样本（\"0\"=分红、\"106\"=折算），未穷举。"
+    }
+  ]
+}
