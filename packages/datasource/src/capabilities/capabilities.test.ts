@@ -225,11 +225,16 @@ it('holdings：now 固定在年初且未指定年份时，取到的是上一年�
   expect(r.value.reportDate).toBe('2025-09-30') // 当年无报告期 → 退一年，且没崩、没给 2026
 })
 
-it('holdings：指定月份未命中时抛错，错误里列出实际可用报告期，不退回别的期', async () => {
-  const http = httpRouting([['type=jjcc', fixture('jjcc/000001-2026.html')]])
+it('holdings：指定月份未命中且备源可用时仍抛错，绝不返回备源的期', async () => {
+  // 备源 FundMNInverstPosition 本身可用（返回它自己的最新一期 2026-09-30）——若没拦住就会拿它顶上
+  const http = httpRouting([
+    ['type=jjcc', fixture('jjcc/000001-2026.html')],
+    ['FundMNInverstPosition', fixture('fundmobapi_position/000001.json')],
+  ])
   const call = dataSource(http).holdings('000001', { year: 2026, month: 12 })
   await expect(call).rejects.toThrow(DataSourceError)
-  await expect(call).rejects.toThrow(/没有 12 月对应的报告期.*2026-09-30/)
+  await expect(call).rejects.toThrow(/没有 12 月对应的报告期.*2026-09-30/) // 主源：说清要哪期、实际有哪些
+  await expect(call).rejects.toThrow(/不提供按期/) // 备源：被拒，不返回它的期
 })
 
 it('holdings：显式指定年份时，当年无报告期一律抛错，不回退上一年（也不靠 [0]! 取到 undefined）', async () => {

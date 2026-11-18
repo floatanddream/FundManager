@@ -96,3 +96,8 @@ it('两个端点：喂反爬 HTML 或缺变量的脚本一律抛 ParseError，�
     expect(() => parse('var somethingElse = 1;')).toThrow(ParseError)
   }
 })
+
+it('jjcc：结构完好但该年没有报告期块时返回空列表而非抛错（「无数据」不是结构错）', () => {
+  // 实测 year=1990（早于成立）→ content:""；此时 apidata/content 都在，只是没有报告期块
+  expect(parseJjcc('var apidata={ content:"",arryear:[1990],curyear:1990 }')).toEqual([])
+})

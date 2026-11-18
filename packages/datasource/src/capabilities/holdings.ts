@@ -15,7 +15,7 @@ import type { HoldingPeriod, HoldingRow } from '../endpoints/fundArchives.ts'
 import { jjccRequest, parseJjcc } from '../endpoints/fundArchives.ts'
 import { inverstPositionRequest, parseInverstPosition } from '../endpoints/fundmobapi.ts'
 import type { HttpClient } from '../http/client.ts'
-import { DataSourceError, ParseError } from '../http/errors.ts'
+import { DataSourceError } from '../http/errors.ts'
 
 import { fetchWithFallback } from './fetchWithFallback.ts'
 import type { Fetched } from './types.ts'
@@ -50,6 +50,15 @@ export function holdings(
         // 与主源的 lossFor 文案必须可区分：这句是「主源挂了」的信号，主源那句是「这次本来就只有前十大」
         loss: '主源 FundArchivesDatas/jjcc 失败，已降级到移动端 FundMNInverstPosition：它只提供前十大持仓（且无持股数、持仓市值），不是该期的真实覆盖',
         run: async () => {
+          // 备源不认 `month`，只会返回它自己的「最新一期」。调用方指定了月份时若拿它顶，
+          // 「要 6 月」就会被换成「给你 9 月」——正是本项目要杜绝的静默错值。直接抛，让整条链
+          // 失败、错误如实返回，绝不返回备源的期。
+          if (month !== undefined) {
+            throw new DataSourceError(
+              `fundmobapi/FundMNInverstPosition 不提供按期（month）查询，只返回其最新一期，` +
+                `指定月份时不能作为备源（${fundCode}）`,
+            )
+          }
           const { text } = await http.request(inverstPositionRequest(fundCode))
           const pos = parseInverstPosition(text)
           if (pos.stocks.length === 0) {
@@ -123,7 +132,7 @@ function selectPeriod(periods: readonly HoldingPeriod[], month: number | undefin
  * **年初的坑**：1 月的头几天里，最新报告期仍是上一年的 Q3——查询「当年」可能一个报告期都拿不到。
  * 故在调用方**没有显式给 `year`**（`fixedYear` 为假）且当年取不到报告期时，退回上一年再取一次
  * （多一次请求，只在取不到时发生）。显式给了年份的调用方**行为不变**：当年没有就如实失败，
- * 绝不换成别的年份。
+ * 绝不换成别的年份。`parseJjcc` 对「该年无报告期」返回空列表（不是抛错），这里据空列表退一年。
  */
 async function fetchJjccPeriod(
   http: HttpClient,
@@ -134,28 +143,11 @@ async function fetchJjccPeriod(
 ): Promise<HoldingPeriod> {
   const load = async (y: number): Promise<readonly HoldingPeriod[]> => {
     const { text } = await http.request(jjccRequest({ fundCode, year: y, month }))
-    return parseJjccOrEmpty(text)
+    return parseJjcc(text)
   }
   let periods = await load(year)
   if (periods.length === 0 && !fixedYear) periods = await load(year - 1)
   return selectPeriod(periods, month)
-}
-
-/**
- * 解析 jjcc；「该年一个报告期都没有」记为空列表。
- *
- * 接口对**无报告期的年份**返回空 `content`（实测 `year=1990` → `content:""`），此时 `parseJjcc`
- * 抛的是「没有报告期块」——同一消息也用于「结构已变」。把它单独转成空列表，上层才能区分
- * 「该年无报告期」（可退一年 / 如实报错）与「响应真的坏了」（照常抛，绝不静默）；消息一旦
- * 变化则不再命中，退回抛错（方向安全，且有测试守着跨年这条路）。
- */
-function parseJjccOrEmpty(text: string): readonly HoldingPeriod[] {
-  try {
-    return parseJjcc(text)
-  } catch (error) {
-    if (error instanceof ParseError && error.message.includes('没有报告期块')) return []
-    throw error
-  }
 }
 
 /** 列出实际拿到的报告期，供报错信息自解释。 */

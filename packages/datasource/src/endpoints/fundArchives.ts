@@ -113,15 +113,19 @@ export type HoldingPeriod = {
  * 一个响应含**多个报告期**（实测 `year=2026` → 3 个块），故必须**按块切分后再取表**，
  * 不能把多个报告期的行混成一个列表。
  *
- * @throws {ParseError} 响应不是可执行 JS（如缺 Referer 的反爬 HTML 页）、缺变量/`content`、
- *   任一块缺报告期或缺表格
+ * **「结构完好但没有报告期块」返回空列表，不是错误**：接口对尚无报告期的年份
+ * （实测 `year=1990`）返回 `content:""`——那是「该年还没披露」这一**正常业务结果**，
+ * 不是结构变了。**只有认不出结构时才抛**（`readJsContent` 的三关：响应是可执行 JS、
+ * 有 `apidata` 变量、`content` 是字符串）。把「无数据」也做成错误，会逼上层靠错误消息
+ * 去辨认它，那才是脆的。
+ *
+ * @returns 各报告期块；该年一个报告期块都没有时为空数组
+ * @throws {ParseError} 响应不是可识别的 jjcc 结构（非可执行 JS／缺 `apidata`／`content` 非字符串／
+ *   某块缺报告期或缺表格）
  */
 export function parseJjcc(text: string): readonly HoldingPeriod[] {
   const content = readJsContent(text, 'apidata', 'jjcc')
   const blocks = content.split("<h4 class='t'>").slice(1)
-  if (blocks.length === 0) {
-    throw new ParseError('jjcc：响应里没有报告期块（`<h4 class="t">` 结构已变）')
-  }
   return blocks.map((block, index) => parseHoldingPeriod(block, index))
 }
 
