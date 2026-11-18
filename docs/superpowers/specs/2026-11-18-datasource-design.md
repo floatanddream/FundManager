@@ -126,10 +126,10 @@ type Fetched<T> = {
 | 能力 | 主 | 备 | TTL | 降级后失去了什么 |
 |---|---|---|---|---|
 | 净值历史 | `f10/lsjz` | `pingzhongdata.Data_netWorthTrend` → `fundmobapi/FundMNHisNetList` | 1 天 | 净值数值等价，但**丢分红/拆分字段** |
-| 基金概况（业绩基准、跟踪标的） | `jbgk_{code}.html` | **无备源** —— 移动端 `FundMNBasicInformation`/`FundMNDetailInformation` 实测都不含这两项 | 7 天 | — |
+| 基金概况（业绩基准、跟踪标的） | `jbgk_{code}.html` | 见下方更正 | 7 天 | — |
 | 持仓（按期） | `FundArchivesDatas?type=jjcc` | `fundmobapi/FundMNInverstPosition` | 1 天 | 由**全量**（半年报/年报）退化为**仅前十大**；换来个股行业与增减持 |
 | 行业配置（基金维度） | `f10/HYPZ/` | **无备源** —— 移动端只给个股维度（`INDEXNAME`），口径不同，不可相代 | 7 天 | — |
-| 资产配置 | `fundmobapi/FundMNAssetAllocationNew` | `pingzhongdata.Data_assetAllocation` | 7 天 | 等价（实测数值一致） |
+| 资产配置 | `fundmobapi/FundMNAssetAllocationNew` | `pingzhongdata.Data_assetAllocation` | 7 天 | 见下方更正 |
 | 规模 / 份额时序 | `FundArchivesDatas?type=gmbd` | `pingzhongdata.Data_fluctuationScale` | 7 天 | 备源**只有规模，无份额、无申赎流量** |
 | 分红 + 份额折算 | `fhsp_{code}.html`（两张表） | `f10/lsjz` 的 `FHFCZ`/`FHSP` 字段 | 1 天 | JSON 版**缺权益登记日与发放日** |
 | 公告列表 | `f10/JJGG` | `f10/FHGG` | 1 天 | 备源**只有分红公告** |
@@ -139,6 +139,21 @@ type Fetched<T> = {
 | 实时行情 / 日 K 线 | `qt.gtimg.cn` / `fqkline` | — | 不缓存 |
 | 个股行业分类 | `push2/stock/get?fields=f127` | — | 30 天 |
 | 板块成分 | `push2/clist/get` | — | 1 天 |
+
+### 七的更正（2026-11-18，实现 Task 9.5 时实测推翻两处）
+
+**1. `基金概况` 并非「无备源」。** 本节原写「移动端 `FundMNBasicInformation`/`FundMNDetailInformation` 实测都不含业绩比较基准与跟踪标的」——**实测 `FundMNDetailInformation` 带 `BENCH` / `PERFCMP`（业绩比较基准）**，与原文相反。因此它**可以**作 `profile` 的备源。
+
+**当前状态：解析已实现但未接进链**（最初按错误的结论下了「不接」的指令）。接回与否留给整体审查裁定——接的代价是补 `profile` 备源的 `dataAsOf` 与 `loss` 语义。
+
+**2. `资产配置` 的主备不是「等价」。** 本节原写「等价（实测数值一致）」——数值确实一致，但**覆盖面不同**：
+
+- 主源 `FundMNAssetAllocationNew` **只给最新报告期**（返回 1 期）
+- 备源 `pingzhongdata.Data_assetAllocation` **给 4 期**
+
+也就是说这条链是**反向的**：主源更新但更窄，备源更旧但更宽。设计选主源时按「结构更规范」而不是「覆盖更完整」来判，这一条应当重新考虑——**取数目的若是「历史资产配置趋势」，主备应当对调**。
+
+**3. 另一个陷阱：`pingzhongdata.Data_assetAllocation` 对货币基金装的是份额流量，不是资产占比。** 按字段名取用会在货币基金上静默取到完全不同的东西。
 
 ## 八、需要显式处理的解析陷阱（实现时逐条对照）
 
