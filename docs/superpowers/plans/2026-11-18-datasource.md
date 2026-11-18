@@ -433,11 +433,40 @@ git add packages/datasource/src/refresh-fixtures.ts packages/datasource/test/con
 git commit -m "feat: fixture 重抓脚本与契约测试，与日常测试分离"
 ```
 
+### Task 9.5: `fundmobapi` 端点族（**原计划遗漏，2026-11-18 补**）
+
+**Files:**
+- Create: `src/endpoints/fundmobapi.ts`、`src/endpoints/fundmobapi.test.ts`
+- Modify: `src/capabilities/`（把三条降级链接回备源）、`src/index.ts`
+
+**为什么有这个任务：** 设计承诺 20 个端点，原计划只覆盖 16——这一族被整个漏掉，而它正是 `navHistory` / `holdings` / `assetAllocation` 三条链的备源。详见「自审记录」的更正。
+
+**四个端点**（实测细节见 `docs/research/2026-11-18-datasource-inventory.md` §1.13–§1.16）：
+
+| 端点 | 用途 | 备注 |
+|---|---|---|
+| `FundMNInverstPosition?FCODE=` | 持仓（**前十大**，另带个股行业与增持/减持方向） | 报告期在**顶层 `Expansion`**，不在 `Datas` 内 |
+| `FundMNAssetAllocationNew?FCODE=` | 资产配置（按报告期） | 与 `pingzhongdata` 数值一致 |
+| `FundMNHisNetList?FCODE=` | 历史净值 | **分页**；**不含**分红/拆分字段 |
+| `FundMNBasicInformation` / `FundMNDetailInformation?FCODE=` | 基本信息 / 详情 | **不含业绩比较基准与跟踪标的**（故不能作 `profile` 的备源——设计 §七表已更正） |
+
+- **ⓘ 无需 `Referer`**，但**有 UA 门禁**：典型的桌面 Windows Chrome UA **被拒**，返回 HTTP 200 + `Success:false`、`ErrCode:61136403`，而 `ErrMsg` 是**误导性的「网络繁忙，请稍后重试！」**。**它不是限流——照限流做退避重试会永远失败。** 必须固定使用带 `Mobile` 的 UA，并在错误信息里说明这一点（项目硬要求：错误信息要能自解释）
+- 端点参数含 `deviceid/plat/product/version`（App 协议形状），**按盘点里实测可用的那组原样使用**
+- 失败路径测试：喂不合规 UA 的响应体，断言抛出的错误**指出这是 UA 问题而不是网络问题**
+
+- [ ] **Step 1: 抓 fixture**（用带 `Mobile` 的 UA）→ **Step 2: 写失败的测试**（正常路径 + 上面那条 UA 失败路径）→ **Step 3–4: 实现 URL 构造 + 纯解析** → **Step 5: 写 manifest**（`requestHeaders` 必须记下那个 Mobile UA）→ **Step 6: 把三条降级链接回备源**
+
+接回时注意 **`loss` 语义要与 Task 9 已有的对齐**：`holdings` 现在有两套「只有前十大」的成因——`jjcc` 被 `topline` 截断（`isFullPortfolio` 为假），与降级到 `FundMNInverstPosition`（本来就只给前十大）。**两者都要落进 `loss`，且文案要能区分**：前者是「这次取到的就是前十大」，后者是「主源挂了，备源只给前十大」。
+
+- [ ] **Step 7: 提交** —— `feat: fundmobapi 端点族适配，接回三条降级链`
+
 ---
 
 ## 自审记录
 
-**规格覆盖**：设计 §六（三层）→ Task 1/2/3-8/9；§七（能力与降级链）→ Task 9；§八（解析陷阱）→ Task 3-8 逐条对应；§九（缓存）→ Task 2/9；§十（测试策略）→ 各 Task 的 fixture 步骤 + Task 10；§十三（接口细节）→ 已写进各 Task 的 Interfaces。**无缺口。**
+**规格覆盖**：设计 §六（三层）→ Task 1/2/3-8/9；§七（能力与降级链）→ Task 9；§八（解析陷阱）→ Task 3-8 逐条对应；§九（缓存）→ Task 2/9；§十（测试策略）→ 各 Task 的 fixture 步骤 + Task 10；§十三（接口细节）→ 已写进各 Task 的 Interfaces。
+
+> **⚠️ 2026-11-18 更正——本自审原先写的是「无缺口」，那句是错的。** 执行到 Task 9 时发现：**`fundmobapi` 端点族（4 个端点）在 Task 3–8 里根本没有被分配**，文件结构里也没有 `fundmobapi.ts`。原计划实际只覆盖 **16 个端点**，而设计承诺 20 个，且把这一族当作 `navHistory` / `holdings` / `assetAllocation` 三条降级链的备源。**这条缺口是本次自审漏掉的**——自审只核对了「设计有哪几节、计划有哪几个任务」，没有逐个端点对账。已补 Task 9.5。**教训：端点类计划的覆盖自审必须是逐端点对账，不是按节对账。**
 
 **Review Focus 落点**：#1 业务码 → Task 3-8 每任务的 Step B 第二条测试；#2 解析失败伪装成空 → Task 3-8 的 `ParseError`；#3 未标 stale → Task 9 Step 1 第三、四条；#4 未标 loss → Task 9 Step 5；#5 分页 → Task 9 Step 4 要点 + Step 5。
 
