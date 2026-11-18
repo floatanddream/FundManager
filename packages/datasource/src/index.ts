@@ -88,3 +88,19 @@ export {
 export type { ClistQuery, SectorMember, SectorMembers, StockIndustry } from './endpoints/push2.ts'
 export { fundcodeRequest, parseFundCodeList } from './endpoints/fundcode.ts'
 export type { FundCodeEntry } from './endpoints/fundcode.ts'
+export { createFundDataSource } from './capabilities/index.ts'
+export { fetchWithFallback } from './capabilities/fetchWithFallback.ts'
+export type {
+  FallbackRun,
+  FallbackSource,
+  FetchWithFallbackSpec,
+} from './capabilities/fetchWithFallback.ts'
+export type {
+  Fetched,
+  FundDataSource,
+  NavHistory,
+  NavHistoryRow,
+  ScaleHistory,
+  ScaleHistoryRow,
+  TurnoverResult,
+} from './capabilities/types.ts'
