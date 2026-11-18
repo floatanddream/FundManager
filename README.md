@@ -63,7 +63,7 @@
 测试      Vitest
 ```
 
-不依赖 Redis、不需要编译原生模块。详见 [`docs/CONSTRAINTS.md`](docs/CONSTRAINTS.md)。
+不依赖 Redis、不需要编译原生模块。详见 [`docs/CONSTRAINTS/README.md`](docs/CONSTRAINTS/README.md)。
 
 ---
 
@@ -71,7 +71,7 @@
 
 | 文件 | 内容 |
 |---|---|
-| [`docs/CONSTRAINTS.md`](docs/CONSTRAINTS.md) | **权威约束**：技术栈、分层规矩、数据源实测结论、必须遵守的规则 |
+| [`docs/CONSTRAINTS/README.md`](docs/CONSTRAINTS/README.md) | **权威约束**：技术栈、分层规矩、数据源实测结论、必须遵守的规则 |
 | [`AGENTS.md`](AGENTS.md) | 仓库内的开发约定（面向 AI 助手与贡献者） |
 
 ---

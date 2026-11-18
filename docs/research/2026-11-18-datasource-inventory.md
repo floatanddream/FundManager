@@ -9,7 +9,7 @@
 > | 样本基金 | `000001` 华夏成长混合（主动混合）、`510300` 沪深300ETF（场内，含份额折算）、`011609`（联接）、`161725`（LOF） |
 > | 方法 | `curl` 逐条请求，响应落盘到 `%TEMP%\fundresearch\`，再离线检查字节数 / 内容 / 编码 |
 >
-> **与 `docs/CONSTRAINTS.md` §5 的关系**：本文**不推翻**该节结论，而是补全、细化、并对两处做了**修正**（见下）。凡与 §5 冲突处，以本文实测为准，需回写 §5。
+> **与 `docs/CONSTRAINTS/05-data-sources.md` §5 的关系**：本文**不推翻**该节结论，而是补全、细化、并对两处做了**修正**（见下）。凡与 §5 冲突处，以本文实测为准，需回写 §5。
 >
 > **两处修正（重要）**：
 > 1. `fundgz.1234567.com.cn/js/{code}.js` 不是硬 `404`，而是**软 404**——HTTP 返回 **200**，body 是「页面未找到」HTML 错误页。只查状态码的客户端会误判成功。§5 写的「404」需改为「200 + 错误页」。
@@ -518,7 +518,7 @@ ishb
 
 ## 5. fixture 策略建议
 
-与 `docs/CONSTRAINTS.md` §9.2 的两层测试对齐（单元测试打 fixture / 契约测试打真网络）。
+与 `docs/CONSTRAINTS/09-process.md` §9.2 的两层测试对齐（单元测试打 fixture / 契约测试打真网络）。
 
 ### 5.1 哪些端点值得固化 fixture
 
@@ -645,7 +645,7 @@ packages/datasource/
 | `FundArchivesDatas.aspx?type=fhsp` / `type=hytz` / `type=jjgg` | ❌ 返回空 | HTTP 200 + `var apidata=`（12 字节） |
 | `api.fund.eastmoney.com/F10/JJPJ/` / `f10/FundGPTop10/` | ❌ 404 | 结构化 404 |
 
-## 附录 B：需要回写 `docs/CONSTRAINTS.md` §5 的条目
+## 附录 B：需要回写 `docs/CONSTRAINTS/05-data-sources.md` §5 的条目
 
 1. `fundgz` 改为「**软 404（200 + 错误页）**」，并提醒不能只查状态码。
 2. 删除「`api.fund.eastmoney.com/f10/*` 整族失效」——改为「`JJFH`/`JJCF` 失效，但 **`lsjz`/`HYPZ`/`FHGG`/`JJGG`/`GetArrayCwzb`/`JJHSL` 可用（均需 Referer）**」。

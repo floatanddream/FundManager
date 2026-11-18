@@ -1,6 +1,6 @@
 # 数据源层设计（`packages/datasource`）
 
-> 2026-11-18 · 依据 `docs/CONSTRAINTS.md` §1 / §4 / §5 / §8 / §9.2 与 `docs/research/2026-11-18-datasource-inventory.md`（20 个端点逐条实测）
+> 2026-11-18 · 依据 `docs/CONSTRAINTS/README.md`（§1 / §4 / §5 / §8 / §9.2，见各节文件）与 `docs/research/2026-11-18-datasource-inventory.md`（20 个端点逐条实测）
 > 本文件是**设计**；任务拆分见随后的计划。
 
 ## 一、这层存在的理由
@@ -199,9 +199,9 @@ TTL 过期但取数失败 → 返回旧值 + `stale: true`。**这是唯一允�
 
 **`FundDataSource` 落地（§1 的缝）**：定义为一个 interface，每个能力一个方法，返回 `Fetched<T>`。默认实现由 endpoints 组合而成。「换源只改装配点」= 换掉这个 interface 的实现，装配点在 `apps/server` 一处。上层依赖 interface，不依赖具体端点。
 
-**HTTP 内核的边界**：内核负责**原始字节到 `unknown`**——注入请求头、超时、退避、按 `charset` 解码、JSON 解析。**业务码校验（`ErrCode` / `Success`）归各端点的解析器**，因为只有它知道该看哪个字段。内核只保证「HTTP 2xx 且拿到了可解码的 body」。这与「解析交给 parser」不再矛盾。
+**HTTP 内核的边界**：内核负责**原始字节到文本**——注入请求头、超时、退避、按 `charset` 解码、去掉 BOM。**返回 `{ status, text }`**。`JSON.parse` 与**业务码校验（`ErrCode` / `Success`）都归各端点的解析器**：业务码落在响应的哪个字段只有解析器知道，而每个 JSON 端点本来就要 parse 一次，放进内核只是把响应格式耦合进内核。内核只保证「HTTP 2xx 且拿到了可解码的 body」。
 
-**内核形态（需微调 §8.5）**：内核有状态（请求间隔、退避计数），故用 class，位于 `packages/datasource`。`CONSTRAINTS.md` §8.5 原文说 class「仅出现在 `apps/server` 层」，而它自己举的例子恰恰是「HTTP 客户端」——该条改为「**仅出现在有 IO 的层**（`datasource` / `apps/server`）；`core` 与解析逻辑一律纯函数」。
+**内核形态（需微调 §8.5）**：内核有状态（请求间隔、退避计数），故用 class，位于 `packages/datasource`。`CONSTRAINTS/08-code-style.md` §8.5 原文说 class「仅出现在 `apps/server` 层」，而它自己举的例子恰恰是「HTTP 客户端」——该条改为「**仅出现在有 IO 的层**（`datasource` / `apps/server`）；`core` 与解析逻辑一律纯函数」。
 
 **请求头来源**：每 endpoint 模块自带 `headers` 声明，不建中心注册表。
 
@@ -210,6 +210,8 @@ TTL 过期但取数失败 → 返回旧值 + `stale: true`。**这是唯一允�
 **endpoint 粒度**：**每端点一个模块，导出全量解析**（如 `parsePingzhongdata(raw)` 一次返回所有变量）；capability 在解析结果上做切片。好处是同一份响应只解析一次，且保住「endpoint 不知道 capability 存在」。
 
 **Zod 归属**：**外部响应形状的 schema 属 `packages/datasource`**（是数据源实现细节，不是共享契约）；**领域类型属 `packages/shared`**（`NavConfirmed` 等已在那里）。解析器出口 = Zod 校验后的类型。
+
+**归一化输出类型的归属**：本层**对外输出**的类型（`Fetched<T>` 与各能力返回的 `T`，如 `FundProfile`、`HoldingRow`）也属 `packages/datasource` —— 它们是数据源的对外契约，不是跨包领域类型。`packages/shared` 只放跨包共用的领域类型（三种价格、`CashFlow` / `ValuationPoint`）与通用工具。**唯一例外**：`NavConfirmed` 既是领域类型又由本层产出 → 留在 shared，本层用 `navConfirmed()` 构造（它本就拒绝脏数据）。
 
 **`Fetched<T>` 增加 `capturedAt`**：§6.3 强调要与 `dataAsOf` 分开，类型里必须两个都有。
 各能力 `dataAsOf` 取值规则：净值为最新净值日；持仓/行业/资产/规模为报告期；分红折算为最近事件日；**无天然时点的**（代码表、个股行业分类）取 `capturedAt` 的日期并在文档注明。

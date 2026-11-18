@@ -4,18 +4,18 @@
 
 **Goal:** 在 `@fundmanager/core` 内实现组合风险指标：年化波动率、最大回撤及回撤修复期、当前回撤、下行波动、滚动持有收益分布、相关性矩阵。全部为纯函数，全部由手算用例验证。
 
-**Architecture:** `core` 是纯函数库：不 import 任何框架，不做任何 IO，不读时间（不调 `Date.now()`，当前日期由调用方以序列末点传入）。所有输入显式传入。风险计算的输入类型一律是 `NavConfirmed[]`（`@fundmanager/shared`），估算与场内价在编译期就传不进来——这是「三种价格隔离」机制（`CONSTRAINTS.md` §4 规则 1）在风险域的落地。
+**Architecture:** `core` 是纯函数库：不 import 任何框架，不做任何 IO，不读时间（不调 `Date.now()`，当前日期由调用方以序列末点传入）。所有输入显式传入。风险计算的输入类型一律是 `NavConfirmed[]`（`@fundmanager/shared`），估算与场内价在编译期就传不进来——这是「三种价格隔离」机制（`CONSTRAINTS/04-hard-rules.md` §4 规则 1）在风险域的落地。
 
 **Tech Stack:** TypeScript 7（strict，ESM）· Vitest 5 · Node 24 原生执行 `.ts`（无构建步骤）· pnpm workspace
 
-**Spec:** `docs/CONSTRAINTS.md` §8（代码风格，本计划直接落实）· §4 规则 1（三种价格类型隔离）· §8.3（错误分类）· `AGENTS.md` · 计划 1（`docs/superpowers/plans/2026-11-17-core-contracts-and-returns.md`）
+**Spec:** `docs/CONSTRAINTS/README.md` §8（代码风格，本计划直接落实）· §4 规则 1（三种价格类型隔离）· §8.3（错误分类）· `AGENTS.md` · 计划 1（`docs/superpowers/plans/2026-11-17-core-contracts-and-returns.md`）
 
 ## Global Constraints
 
 - TypeScript strict，ESM（`"type": "module"`）。**不使用装饰器**——Node 原生执行 `.ts` 会 `SyntaxError`
 - **相对导入必须带 `.ts` 后缀**（如 `import { dailyReturns } from './series.ts'`）。**不能用 `.js`**——实测 Node 报 `ERR_MODULE_NOT_FOUND`。这与 TypeScript 官方推荐相反，但本项目无构建步骤、由 Node 直接执行，只能如此
 - **不使用 `baseUrl`**（TypeScript 7 已移除，用了会 `TS5102`）
-- **包的出口用显式列名导出，不用 `export *`**（`CONSTRAINTS.md` §8.4）
+- **包的出口用显式列名导出，不用 `export *`**（`CONSTRAINTS/08-code-style.md` §8.4）
 - `packages/core` **不 import 任何框架、不做任何 IO、不读时间**，全部为纯函数（§8.5）
 - **风险计算的输入一律是 `NavConfirmed[]`**，估算值（`NavEstimate`）与场内价（`MarketPrice`）在编译期不得进入（§4 规则 1）。**不用 `number[]` 裸净值**
 - **金额、净值、份额的比较一律用 `approxEqual`，禁止 `===`**（§8.1）
@@ -32,7 +32,7 @@
 
 ### 术语与符号约定
 
-`docs/CONSTRAINTS.md` 未涵盖，由本计划确立，**后续计划沿用**：
+`docs/CONSTRAINTS/README.md` 未涵盖，由本计划确立，**后续计划沿用**：
 
 | 量 | 符号 | 说明 |
 |---|---|---|
@@ -1193,7 +1193,7 @@ EOF
 
 ## 自审记录
 
-**规格覆盖：** 本计划落实 `CONSTRAINTS.md` 与本计划相关的规则。§4 规则 1（三种价格隔离）→ 全部指标输入为 `NavConfirmed[]`，裸 `number[]` 与 `NavEstimate`/`MarketPrice` 编译期进不来（Task 1-5 的每个 `Consumes`）；§8.1（比较用 `approxEqual`）→ 本计划的比较集中在 `Number.isFinite`、`> 0`、字符串日期比较，未使用 `===` 比较金额/净值，故无需 `approxEqual`——**注意：这是有意的，不是遗漏**；§8.2（`YYYY-MM-DD`）→ 序列校验走 `assertDate`，滚动窗口用 `daysBetween`；§8.3（错误分类）→ 无解返 `null`（观测不足、未修复、零方差、无窗口），参数非法抛 `TypeError`（乱序、非正净值、非法 `holdingDays`/`window`/`periodsPerYear`/`target`）；§8.4（显式列名导出）→ 每个 Task 的包出口步与 `series.ts` 内的模块级导出；§8.5（纯函数）→ 无 class、无 IO、无 `Date.now()`，当前日期经序列末点传入；§8.7（注释）→ 所有导出函数用 JSDoc，**会抛异常的均带 `@throws`**，函数体内的滑窗、分位数插值、回撤扫描、皮尔逊均值扣除均有只解释「为什么」的行内注释。
+**规格覆盖：** 本计划落实 `CONSTRAINTS/README.md` 与本计划相关的规则。§4 规则 1（三种价格隔离）→ 全部指标输入为 `NavConfirmed[]`，裸 `number[]` 与 `NavEstimate`/`MarketPrice` 编译期进不来（Task 1-5 的每个 `Consumes`）；§8.1（比较用 `approxEqual`）→ 本计划的比较集中在 `Number.isFinite`、`> 0`、字符串日期比较，未使用 `===` 比较金额/净值，故无需 `approxEqual`——**注意：这是有意的，不是遗漏**；§8.2（`YYYY-MM-DD`）→ 序列校验走 `assertDate`，滚动窗口用 `daysBetween`；§8.3（错误分类）→ 无解返 `null`（观测不足、未修复、零方差、无窗口），参数非法抛 `TypeError`（乱序、非正净值、非法 `holdingDays`/`window`/`periodsPerYear`/`target`）；§8.4（显式列名导出）→ 每个 Task 的包出口步与 `series.ts` 内的模块级导出；§8.5（纯函数）→ 无 class、无 IO、无 `Date.now()`，当前日期经序列末点传入；§8.7（注释）→ 所有导出函数用 JSDoc，**会抛异常的均带 `@throws`**，函数体内的滑窗、分位数插值、回撤扫描、皮尔逊均值扣除均有只解释「为什么」的行内注释。
 
 **步骤扫描：** 每个 Step 只做一件事——写测试 / 跑测试确认失败 / 实现 / 跑测试确认通过 / 更新出口 / 全量验证 / 提交。无「处理边界情况」这类无法执行的措辞；边界情况全部落到具体断言（乱序、重复、非正、NaN、观测不足、未修复、零方差、无窗口、非法参数）。
 

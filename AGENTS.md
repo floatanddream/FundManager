@@ -27,7 +27,7 @@
 
 ## 先读这个
 
-**`docs/CONSTRAINTS.md` 是权威约束文件。动手前必读。** 本文件只讲怎么在这个仓库里干活，约束以那份为准。
+**`docs/CONSTRAINTS/` 是权威约束目录，动手前必读。** 先读它的 `README.md`（索引），再**只读与当前任务相关的那几节**——不必通读。引用时用 `§编号`，编号稳定。本文件只讲怎么在这个仓库里干活，约束以那份为准。
 
 ---
 
@@ -63,7 +63,7 @@ FundManager/
 │   ├── datasource/       外部数据源适配 + 缓存 + 降级
 │   └── shared/           Zod 契约 + 共享类型
 └── docs/
-    └── CONSTRAINTS.md    权威约束
+    └── CONSTRAINTS/      权威约束（索引见其 README.md）
 ```
 
 分层流向：`Route → Service → { Repository | DataSource | core }`
@@ -109,7 +109,7 @@ git 已初始化，依赖已装齐。`packages/shared`（数值/日期工具 + �
 - **TypeScript strict**，ESM（根 `package.json` 已是 `"type": "module"`）
 - **不要用装饰器** —— Node 原生跑 `.ts` 会 `SyntaxError`（已实测）
 - **`packages/core` 的关键函数要有测试**，用手算案例验证。算错了亏的是真钱
-- **测试要克制**（`CONSTRAINTS.md` §8.8–8.9）：不为「几乎不会触达的边界输入」和「正常使用中不会出现的错误」写测试；也不为单个断言搭一整套 mock／fixture。判据是**这条路径会不会在真实使用中静默产生错值**——会就测，不会就不写。`core` 的函数是纯函数，测试应当是一串数字进、一个数字出；需要日期 mock 或网络 stub 才能测，多半是设计出了问题
+- **测试要克制**（`CONSTRAINTS/08-code-style.md` §8.8–8.9）：不为「几乎不会触达的边界输入」和「正常使用中不会出现的错误」写测试；也不为单个断言搭一整套 mock／fixture。判据是**这条路径会不会在真实使用中静默产生错值**——会就测，不会就不写。`core` 的函数是纯函数，测试应当是一串数字进、一个数字出；需要日期 mock 或网络 stub 才能测，多半是设计出了问题
 - 抓取层统一走 `packages/datasource` 的接口，不要在业务代码里直接 `fetch` 外部 URL
 - 外部接口返回的 JS 文件（`pingzhongdata/*.js`）用 `node:vm` 沙箱或正则解析，**不要 `eval`**
 
@@ -117,7 +117,7 @@ git 已初始化，依赖已装齐。`packages/shared`（数值/日期工具 + �
 
 ## 数据源要点
 
-致富的坑都在这。细节见 `docs/CONSTRAINTS.md` §5。
+致富的坑都在这。细节见 `docs/CONSTRAINTS/05-data-sources.md` §5。
 
 - 腾讯的行情接口返回 **GBK 编码**，需转码
 - 名称含「联接」的基金买的是 ETF，**必须穿透**，其「股票仓位」字段是障眼法（实测 0.41%）

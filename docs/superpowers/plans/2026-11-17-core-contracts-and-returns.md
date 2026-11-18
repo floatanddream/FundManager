@@ -8,14 +8,14 @@
 
 **Tech Stack:** TypeScript 7（strict，ESM）· Vitest 5 · Prettier · Node 24 原生执行 `.ts`（无构建步骤）· pnpm workspace
 
-**Spec:** `docs/CONSTRAINTS.md` §8（代码风格，本计划直接落实）· `AGENTS.md` · `README.md`
+**Spec:** `docs/CONSTRAINTS/08-code-style.md` §8（代码风格，本计划直接落实）· `AGENTS.md` · `README.md`
 
 ## Global Constraints
 
 - TypeScript strict，ESM（`"type": "module"`）。**不使用装饰器**——Node 原生执行 `.ts` 会 `SyntaxError`
 - **相对导入必须带 `.ts` 后缀**（如 `import { x } from './price.ts'`）。**不能用 `.js`**——实测 Node 报 `ERR_MODULE_NOT_FOUND`。这与 TypeScript 官方推荐相反，但本项目无构建步骤、由 Node 直接执行，只能如此
 - **不使用 `baseUrl`**（TypeScript 7 已移除，用了会 `TS5102`）
-- **包的出口用显式列名导出，不用 `export *`**（`CONSTRAINTS.md` §8.4）
+- **包的出口用显式列名导出，不用 `export *`**（`CONSTRAINTS/08-code-style.md` §8.4）
 - `packages/core` **不 import 任何框架、不做任何 IO**，全部为纯函数
 - **金额、净值、份额的比较一律用 `approxEqual`，禁止 `===`**（§8.1）
 - **业务代码只许 `YYYY-MM-DD` 字符串**，带时间的日期字符串禁止进入业务逻辑（§8.2）
@@ -1009,7 +1009,7 @@ EOF
 - `TWR = Π(1 + r_i) - 1`
 - `points` 须按日期升序传入（调用方负责不排序，本函数**校验日期合法性与升序性**，违反即抛 `TypeError`）
 - 无解条件：`points.length < 2`；任一子区间分母 `<= 0`
-- **日期非法，或日期非严格升序 → 抛 TypeError**（同日重复亦非法：相邻日收益按输入顺序相除，同日两点无意义）。不为 `value/flow` 非有限数（`NaN`）写守卫——正常使用中不会出现，数据源层由 Zod 兜住（见 `docs/CONSTRAINTS.md` §8.8）
+- **日期非法，或日期非严格升序 → 抛 TypeError**（同日重复亦非法：相邻日收益按输入顺序相除，同日两点无意义）。不为 `value/flow` 非有限数（`NaN`）写守卫——正常使用中不会出现，数据源层由 Zod 兜住（见 `docs/CONSTRAINTS/08-code-style.md` §8.8）
 
 - [ ] **Step 1: 写失败的测试**
 
@@ -1193,7 +1193,7 @@ EOF
 
 ## 自审记录
 
-**规格覆盖：** 本计划覆盖设计与约束中的「基础工具」「类型契约」「收益计算」三块，其余子系统另立计划（见文末）。`CONSTRAINTS.md` §8 的风格规则逐条落实：8.1 → Task 1 Step 2-5（`approxEqual`，按相对容差处理大数值）；8.2 → Task 1 Step 6-9（`assertDate` 拒绝带时间字符串）；8.3 → 各任务的无解返 `null` 与非法抛异常；8.4 → 各任务 Step 的显式列名导出；8.5 → `core` 全纯函数；8.6 → Task 1 Step 1 装 Prettier；**8.7 → 计划中所有代码块已按注释规范写成**：导出的公共函数一律 JSDoc 形式（`approxEqual` / `assertDate` / `daysBetween` / `normalizeFlows` / `npv` / `xirr` / `timeWeightedReturn` / `navConfirmed`），**其中会抛异常的都带 `@throws`**；语义自明的导出函数（`navEstimate` / `marketPrice` / `isConfirmed`）用一行 JSDoc 即可，按 §8.7 只在「参数/返回值语义不显然时」才需要 `@param` / `@returns`；真正非导出的辅助函数用单行注释（`npvDerivative`）；函数体内的数值迭代、边界处理、公式推导均有行内注释，且只解释「为什么」（如二分法的符号变化依据、分母非正为何返回 `null` 而非 `Infinity`）。
+**规格覆盖：** 本计划覆盖设计与约束中的「基础工具」「类型契约」「收益计算」三块，其余子系统另立计划（见文末）。`CONSTRAINTS/08-code-style.md` §8 的风格规则逐条落实：8.1 → Task 1 Step 2-5（`approxEqual`，按相对容差处理大数值）；8.2 → Task 1 Step 6-9（`assertDate` 拒绝带时间字符串）；8.3 → 各任务的无解返 `null` 与非法抛异常；8.4 → 各任务 Step 的显式列名导出；8.5 → `core` 全纯函数；8.6 → Task 1 Step 1 装 Prettier；**8.7 → 计划中所有代码块已按注释规范写成**：导出的公共函数一律 JSDoc 形式（`approxEqual` / `assertDate` / `daysBetween` / `normalizeFlows` / `npv` / `xirr` / `timeWeightedReturn` / `navConfirmed`），**其中会抛异常的都带 `@throws`**；语义自明的导出函数（`navEstimate` / `marketPrice` / `isConfirmed`）用一行 JSDoc 即可，按 §8.7 只在「参数/返回值语义不显然时」才需要 `@param` / `@returns`；真正非导出的辅助函数用单行注释（`npvDerivative`）；函数体内的数值迭代、边界处理、公式推导均有行内注释，且只解释「为什么」（如二分法的符号变化依据、分母非正为何返回 `null` 而非 `Infinity`）。
 
 > 2026-11-18 修正：本段原先把 `navEstimate` / `marketPrice` / `isConfirmed` 称为「非导出小函数」，**与事实不符**——三者在计划里都是 `export function`。它们的注释本就是 JSDoc 形式，无违规；错的是这段描述。已更正。
 
@@ -1235,4 +1235,4 @@ EOF
 - 用上面这组数据固化**回归测试**：估算代码每次改动后，误差不得退化
 - 据此定出**验收阈值**——而不是凭单个观测拍板
 
-所需数据源已实测可用（见 `docs/CONSTRAINTS.md` §5「持仓披露频率」）。
+所需数据源已实测可用（见 `docs/CONSTRAINTS/05-data-sources.md` §5「持仓披露频率」）。
