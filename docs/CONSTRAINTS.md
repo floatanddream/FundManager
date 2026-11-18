@@ -356,7 +356,7 @@ if (base <= 0) return null
 
 - **git 是审查能力的前提，不只是版本控制。** `superpowers:requesting-code-review` 靠 `BASE_SHA` / `HEAD_SHA` 划定审查范围——没有 git 就没有 SHA，那层独立审查直接失效
 - **每个任务完成、测试全绿后提交一次**，提交边界与计划的任务边界一致
-- 提交信息末尾附加：`Co-Authored-By: Claude Code <noreply@anthropic.com>`
+- **提交信息不得包含任何工具署名行**。`Co-Authored-By:` 指向 AI 工具、`Generated with ...`、`🤖 ...` 之类一律不加——提交信息只写改动本身（2026-11-18 使用者明确要求）
 
 ### 9.2 测试数据策略（已定）
 

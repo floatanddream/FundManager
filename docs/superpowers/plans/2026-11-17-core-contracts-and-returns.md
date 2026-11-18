@@ -23,7 +23,7 @@
 - 代码注释与用户可见文案用中文；标识符用英文
 - 测试文件与被测文件同目录，命名 `*.test.ts`，**测试名用中文**
 - **每个任务以「测试全绿 → 提交」为完成标志**。提交边界与任务边界一致。仓库已初始化，基线提交 `5621435`
-- 提交信息末尾附加 `Co-Authored-By: Claude Code <noreply@anthropic.com>`
+- **提交信息不得包含任何工具署名行**（`Co-Authored-By:` 指向 AI 工具、`Generated with ...`、`🤖 ...` 一律不加），只写改动本身
 - **执行方式：subagent 驱动**——每个任务派全新 subagent 实现，再由全新 reviewer 审查（依据 `superpowers:requesting-code-review`，需 git SHA），通过后才进下一个任务
 
 ## Review Focus
@@ -363,7 +363,6 @@ feat: 建立数值与日期基础工具
   并回读比对以拒绝 2024-02-31 这类不存在的日期。
 - 工具链：tsconfig 基础配置、Vitest、Prettier。
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
 ```
 
@@ -537,7 +536,6 @@ feat: 建立三种价格的类型契约
 收益与风险计算只接受 NavConfirmed——把估值传进去在编译期就报错，
 不靠自觉。这是防止「用估算数字做决策」的技术保障。
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
 ```
 
@@ -949,7 +947,6 @@ XIRR 回答「我这笔钱实际赚了多少」，与 TWR 回答的「基金经�
 - xirr：牛顿法求根、二分法兜底。无解（不满两笔、全部同号）返回 null
   而非 NaN；参数非法抛 TypeError 而非静默产生 NaN。
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
 ```
 
@@ -1143,7 +1140,6 @@ feat: 实现 TWR 时间加权收益
 分母非正时返回 null 而非 Infinity：那一期没有本金，收益率无定义，
 返回 Infinity 会污染后续连乘。
 
-Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
 ```
 
