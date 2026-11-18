@@ -49,3 +49,11 @@ export type {
   ScalePoint,
   StockPositionPoint,
 } from './endpoints/pingzhongdata.ts'
+export { gmbdRequest, jjccRequest, parseGmbd, parseJjcc } from './endpoints/fundArchives.ts'
+export type {
+  GmbdQuery,
+  HoldingPeriod,
+  HoldingRow,
+  JjccQuery,
+  ScaleShareRow,
+} from './endpoints/fundArchives.ts'

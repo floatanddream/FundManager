@@ -1,0 +1,21 @@
+{
+  "endpoint": "FundArchivesDatas/jjcc",
+  "files": [
+    {
+      "file": "000001-2026.html",
+      "sourceUrl": "https://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code=000001&topline=10&year=2026&month=6",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T16:25:51+08:00",
+      "dataAsOf": "2026-09-30",
+      "requestHeaders": {
+        "Referer": "https://fundf10.eastmoney.com/ccmx_000001.html"
+      },
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 45374,
+      "sha256": "ce3a27631eb091fff682e8911af30d705d61019aaff03d3cecc05e2d74703910",
+      "notes": "原始响应逐字节存盘、不清洗。核心特征=一个响应含多个报告期混排：3 个块，按序 2026-09-30（10 行）、2026-06-30（77 行，全量）、2026-03-31（10 行）。响应是 JS 变量 var apidata={ content:\"<div…HTML…>\", arryear:[…], curyear:2026 }。两种列布局并存：当前季度块每行 9 个 <td>（含空的 最新价/涨跌幅 <span> 与 相关资讯），历史块每行 7 个 <td>（那三列整列不存在）——故「占净值比例」必须取最后三列，不能按固定列位。块尾 tfoot 链接文案是判断完整/前十大（全量 vs topline 截断）的唯一信号：2026-06-30 块为「收起持仓明细」（完整），另两块无此链接（季报仅前十大）。实测修正inventory §1.4：month 并非被忽略——month=6 命中的半年报块返回全部持仓且不受 topline 限制，其余块仍受 topline 截断。Referer 必需，缺它返回 HTTP 404 + <!DOCTYPE html…> 反爬页（不是 200 + 业务码 JSON），故解析失败断言 ParseError。"
+    }
+  ]
+}

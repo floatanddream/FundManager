@@ -1,0 +1,21 @@
+{
+  "endpoint": "FundArchivesDatas/gmbd",
+  "files": [
+    {
+      "file": "000001.html",
+      "sourceUrl": "https://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=gmbd&code=000001&page=1",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T16:28:36+08:00",
+      "dataAsOf": "2026-09-30",
+      "requestHeaders": {
+        "Referer": "https://fundf10.eastmoney.com/gmbd_000001.html"
+      },
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 60750,
+      "sha256": "2d889a55614850399c40a1efa49eb9e52e494d36908a410b5788c92b225a0ec3",
+      "notes": "原始响应逐字节存盘、不清洗。响应变量是 var gmbd_apidata={ content:\"<table…>\", summary:\"…\", data:[…100 条…] }——变量名不是 apidata（易错点）。只解析 content 里的 HTML 表：100 行数据，覆盖 2026-09-30 → 2001-12-18（季度全历史，最新在前），表头 日期/期间申购(亿份)/期间赎回(亿份)/期末总份额(亿份)/期末净资产(亿元)/净资产变动率。最早行 2001-12-18 的申购/赎回/净资产/变动率为 --- 占位（解析为 null）。响应内的 data 数组不解析：其字段语义在同一响应内不一致（近期行期末净资产在 NETNAV、老行在 QMJZC），中文口径只有表头写得明白。Referer 必需，缺它返回 HTTP 404 + <!DOCTYPE html…> 反爬页，故解析失败断言 ParseError。"
+    }
+  ]
+}
