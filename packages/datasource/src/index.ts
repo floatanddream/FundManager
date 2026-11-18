@@ -88,6 +88,30 @@ export {
 export type { ClistQuery, SectorMember, SectorMembers, StockIndustry } from './endpoints/push2.ts'
 export { fundcodeRequest, parseFundCodeList } from './endpoints/fundcode.ts'
 export type { FundCodeEntry } from './endpoints/fundcode.ts'
+export {
+  MOBILE_USER_AGENT,
+  assetAllocationRequest,
+  basicInformationRequest,
+  detailInformationRequest,
+  hisNetListRequest,
+  inverstPositionRequest,
+  parseInverstPosition,
+  parseMobAssetAllocation,
+  parseMobBasicInformation,
+  parseMobDetailInformation,
+  parseMobHisNetList,
+} from './endpoints/fundmobapi.ts'
+export type {
+  HisNetListQuery,
+  MobAssetAllocationRow,
+  MobBasicInformation,
+  MobBondRow,
+  MobDetailInformation,
+  MobHoldingRow,
+  MobNavPage,
+  MobNavRow,
+  MobPosition,
+} from './endpoints/fundmobapi.ts'
 export { createFundDataSource } from './capabilities/index.ts'
 export { fetchWithFallback } from './capabilities/fetchWithFallback.ts'
 export type {

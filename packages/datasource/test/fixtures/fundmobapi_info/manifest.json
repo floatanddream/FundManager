@@ -1,0 +1,37 @@
+{
+  "endpoint": "fundmobapi/FundMNBasicInformation / FundMNDetailInformation",
+  "files": [
+    {
+      "file": "000001-basic.json",
+      "sourceUrl": "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNBasicInformation?FCODE=000001&deviceid=Wap&plat=Wap&product=EFund&version=2.0.0&Uid=",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T17:35:00+08:00",
+      "dataAsOf": "2026-11-17",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 2578,
+      "sha256": "04489bfa5d17fb919673bc7bf92a4902fa2562a31b5a5685fde25974500087fb",
+      "notes": "带 Mobile 的 UA 必需。Datas：FCODE/SHORTNAME 华夏成长混合/FTYPE 混合型-灵活/FSRQ 净值日 2026-11-17/DWJZ/RZDF 日增长率/JJGS 基金公司/JJJL 经理（逗号分隔）。**不含业绩比较基准与跟踪标的**。本任务不接 profile 备源。"
+    },
+    {
+      "file": "000001-detail.json",
+      "sourceUrl": "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNDetailInformation?FCODE=000001&deviceid=Wap&plat=Wap&product=EFund&version=2.0.0&Uid=",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T17:35:00+08:00",
+      "dataAsOf": "2026-09-30",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 2664,
+      "sha256": "7b53178f31547612362025636d1b55c1a0f3b1a0b98cccb359e6370e9ca457c5",
+      "notes": "带 Mobile 的 UA 必需。Datas：FULLNAME 华夏成长证券投资基金/ESTABDATE 成立日/WEBBACKCODE/JJGS/JJJL/投资目标与策略等。**注意**：设计 §七 称本端点「不含业绩比较基准与跟踪标的」，但实测 BENCH 与 PERFCMP 都有值（=「中证800成长指数收益率*70%+中债-综合全价(总值)指数收益率*30%」，与 jbgk 一致）；跟踪标的字段 INDEXCODE/INDEXNAME 为「--」。本任务按计划**不接** profile 备源，此 fixture 供核对设计。dataAsOf 取规模日期 FEGMRQ。"
+    }
+  ]
+}

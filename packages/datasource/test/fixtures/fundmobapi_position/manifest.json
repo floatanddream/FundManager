@@ -1,0 +1,37 @@
+{
+  "endpoint": "fundmobapi/FundMNInverstPosition",
+  "files": [
+    {
+      "file": "000001.json",
+      "sourceUrl": "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNInverstPosition?FCODE=000001&deviceid=Wap&plat=Wap&product=EFund&version=2.0.0&Uid=",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T17:35:00+08:00",
+      "dataAsOf": "2026-09-30",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 4227,
+      "sha256": "35a78a0da0498b40ad8a46540e7971dc8f7d50934f9d91179ce0ecf037546ce5",
+      "notes": "原始响应逐字节存盘、不清洗。带 Mobile 的 UA 必需（本 fixture 用的那条 3/3 成功）。报告期在顶层 Expansion=\"2026-09-30\"（不在 Datas 内）。Datas.fundStocks 长度 10（仅前十大），每项含 GPDM/GPJC/JZBL/INDEXNAME（个股行业，细分口径）/PCTNVCHGTYPE（增持/减持）/PCTNVCHG。另有 fundboods（债券 6 只）、fundfofs（空）、ETFCODE/ETFSHORTNAME（null，非联接）。无 Referer。"
+    },
+    {
+      "file": "desktop-UA-rejected.json",
+      "sourceUrl": "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNInverstPosition?FCODE=000001&deviceid=Wap&plat=Wap&product=EFund&version=2.0.0&Uid=",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T17:35:00+08:00",
+      "dataAsOf": "2026-11-18",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 234,
+      "sha256": "a28a08e652e06952fcd02e21f5d116baeb008bf1f6001b2b47956e6f27d75312",
+      "notes": "UA 门禁的失败响应体（为复现而固化）。用的是**典型桌面 Windows Chrome** UA：HTTP 仍 200，但 Success:false、ErrCode:61136403，ErrMsg 是误导性的「网络繁忙，请稍后重试！」。它不是限流——照限流做退避重试会永远失败。解析器须把它当 UA 问题报告，故 dataAsOf 无意义，填抓取日。"
+    }
+  ]
+}

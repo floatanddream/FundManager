@@ -17,6 +17,30 @@ const httpReturning = (body: string): HttpClient =>
 const dataSource = (http: HttpClient) =>
   createFundDataSource({ http, cache: new MemoryCacheStore() })
 
+/** 按 URL 关键字路由到响应体；未匹配的 URL 一律 404（模拟该源不可用） */
+const httpRouting = (routes: readonly (readonly [string, string])[]): HttpClient =>
+  new HttpClient({
+    minIntervalMs: 0,
+    maxRetries: 0,
+    fetch: async (url) => {
+      const hit = routes.find(([key]) => String(url).includes(key))
+      return hit === undefined ? new Response('nope', { status: 404 }) : new Response(hit[1])
+    },
+  })
+
+/** 实测缺 Referer 的失败响应：HTTP 200 + ErrCode:-999 */
+const noReferer = JSON.stringify({ ErrCode: -999, ErrMsg: '', Data: '' })
+
+/** 一页移动端历史净值（FundMNHisNetList） */
+const hisnetRow = (date: string, nav: number, accNav: number, growthRate: number) => ({
+  FSRQ: date,
+  DWJZ: String(nav),
+  LJJZ: String(accNav),
+  JZZZL: String(growthRate),
+})
+const hisnetPage = (rows: readonly unknown[], totalCount: number): string =>
+  JSON.stringify({ ErrCode: 0, Success: true, Datas: rows, TotalCount: totalCount })
+
 /** 一行/一页 lsjz 的构造助手（测试名与断言用中文，造数据用助手） */
 const lsjzRow = (date: string, nav: number) => ({
   FSRQ: date,
@@ -74,4 +98,53 @@ it('holdings：仅前十大时在 loss 里如实说明，month 命中全量块�
   const full = await ds.holdings('000001', { year: 2026, month: 6 })
   expect(full.loss).toBeNull()
   expect(full.value.isFullPortfolio).toBe(true)
+})
+
+it('navHistory：前两源都失败时降级到 fundmobapi，仍标出丢失分红字段', async () => {
+  const http = httpRouting([
+    ['f10/lsjz', noReferer],
+    ['pingzhongdata', 'var broken = 1;'],
+    ['FundMNHisNetList', hisnetPage([hisnetRow('2026-11-17', 0.951, 3.524, 0.74)], 1)],
+  ])
+  const r = await dataSource(http).navHistory('000001')
+  expect(r.source).toBe('fundmobapi/FundMNHisNetList')
+  expect(r.loss).toContain('分红')
+  expect(r.value.rows[0]!.nav).toEqual({ kind: 'nav', value: 0.951, date: '2026-11-17' })
+})
+
+it('holdings：主源失败降级到移动端时，loss 与「本次仅前十大」可区分', async () => {
+  const http = httpRouting([['FundMNInverstPosition', fixture('fundmobapi_position/000001.json')]])
+  const r = await dataSource(http).holdings('000001', { year: 2026 })
+  expect(r.source).toBe('fundmobapi/FundMNInverstPosition')
+  expect(r.loss).toContain('降级')
+  expect(r.value.reportDate).toBe('2026-09-30')
+  expect(r.value.holdings[0]).toMatchObject({
+    rank: 1,
+    stockCode: '300308',
+    navRatio: 5.26,
+    shares: null,
+    marketValue: null,
+  })
+})
+
+it('assetAllocation：主源为移动端；降级到 pingzhongdata 时标出无「其他」占比', async () => {
+  const main = await dataSource(
+    httpRouting([['FundMNAssetAllocationNew', fixture('fundmobapi_assetallocation/000001.json')]]),
+  ).assetAllocation('000001')
+  expect(main.source).toBe('fundmobapi/FundMNAssetAllocationNew')
+  expect(main.value.categories).toEqual(['2026-09-30'])
+  expect(main.value.series.map((s) => s.name)).toEqual([
+    '股票占净比',
+    '债券占净比',
+    '现金占净比',
+    '其他占净比',
+    '净资产',
+  ])
+  expect(main.value.series[0]!.data).toEqual([78.21])
+
+  const backup = await dataSource(
+    httpRouting([['pingzhongdata', fixture('pingzhongdata/000001.js')]]),
+  ).assetAllocation('000001')
+  expect(backup.source).toBe('pingzhongdata/Data_assetAllocation')
+  expect(backup.loss).toContain('其他')
 })

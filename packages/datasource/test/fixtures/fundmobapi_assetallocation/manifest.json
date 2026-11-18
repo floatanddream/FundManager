@@ -1,0 +1,21 @@
+{
+  "endpoint": "fundmobapi/FundMNAssetAllocationNew",
+  "files": [
+    {
+      "file": "000001.json",
+      "sourceUrl": "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNAssetAllocationNew?FCODE=000001&deviceid=Wap&plat=Wap&product=EFund&version=2.0.0&Uid=",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T17:35:00+08:00",
+      "dataAsOf": "2026-09-30",
+      "requestHeaders": {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+      },
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 260,
+      "sha256": "348aaf28b91fc291e9d05d6c29e23f834e77bbfe29bd0a78b1862f5baded7354",
+      "notes": "带 Mobile 的 UA 必需。Datas 只含**最新一个报告期**（TotalCount:1；加 pageIndex/pageSize 也不变，实测）。字段：FSRQ 报告期 / GP 股票占净比 78.21 / ZQ 债券 20.82 / HB 现金 0.45 / JZC 净资产（亿）29.1867 / QT 其他 0.52 / JJ 基金「--」。与 pingzhongdata.Data_assetAllocation 的股票/债券/现金数值一致，但**多一个「其他」占比**，且只给 1 期（pingzhongdata 给多期）。对货币/债券基金 GP 可能是「--」（无股票），解析归一为 null，能力层按 0 处理。"
+    }
+  ]
+}

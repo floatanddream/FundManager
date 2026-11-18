@@ -102,13 +102,18 @@ export interface FundDataSource {
     opts?: { readonly startDate?: string; readonly endDate?: string },
   ): Promise<Fetched<NavHistory>>
 
-  /** 基金概况（业绩比较基准 / 跟踪标的）。**无备源**（移动端接口不含这两项）。 */
+  /**
+   * 基金概况（业绩比较基准 / 跟踪标的）。**无备源**。
+   *
+   * 注：`FundMNDetailInformation` 实测**带** `BENCH`/`PERFCMP`，理论上可作备源；本任务按计划未接入。
+   */
   profile(fundCode: string): Promise<Fetched<FundProfilePage>>
 
   /**
    * 持仓。默认取最新报告期；给 `month` 则取命中的那期。
    *
-   * `loss` 反映该期是否为完整持仓：季报前十大或被 `topline` 截断时非 null（Review Focus #4）。
+   * `loss` 在两种情况下非 null，文案可区分成因（Review Focus #4）：
+   * 主源命中但该期本就非全量（季报/`topline` 截断），或主源失败降级到移动端（只给前十大）。
    */
   holdings(
     fundCode: string,
@@ -121,7 +126,10 @@ export interface FundDataSource {
     opts?: { readonly year?: number },
   ): Promise<Fetched<readonly IndustryQuarter[]>>
 
-  /** 资产配置。**只有 `pingzhongdata` 源**（设计里的主源 `FundMNAssetAllocationNew` 未接入本层）。 */
+  /**
+   * 资产配置。主源移动端 `fundmobapi/FundMNAssetAllocationNew`，降级 `pingzhongdata.Data_assetAllocation`
+   * （备源无「其他」占比，故降级时 `loss` 非 null）。
+   */
   assetAllocation(fundCode: string): Promise<Fetched<CategorizedSeries>>
 
   /** 规模/份额时序。主源 `gmbd`（含份额与申赎），降级 `pingzhongdata`（只有规模）。 */
