@@ -6,6 +6,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:contract": "vitest run -c packages/datasource/test/contract/vitest.contract.config.ts",
     "typecheck": "tsc --noEmit -p packages/shared && tsc --noEmit -p packages/core && tsc --noEmit -p packages/datasource",
     "format": "prettier --write ."
   },
