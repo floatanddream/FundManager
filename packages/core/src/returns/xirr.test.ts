@@ -10,6 +10,22 @@ describe('npv', () => {
     ]
     expect(npv(0, flows)).toBeCloseTo(100, 6)
   })
+
+  it('基准取最早一笔，非零利率下对输入顺序不敏感', () => {
+    // 简报定义 days_i 为「距最早一笔的天数」。旧实现取首元素为基准，
+    // 乱序时首元素未必最早，基准错但数值看着合理。此测试钉住该修复。
+    const ordered: CashFlow[] = [
+      { date: '2024-01-01', amount: -1000 },
+      { date: '2024-07-01', amount: 500 },
+      { date: '2025-01-01', amount: 600 },
+    ]
+    const shuffled: CashFlow[] = [ordered[2]!, ordered[0]!, ordered[1]!]
+    expect(npv(0.1, shuffled)).toBeCloseTo(npv(0.1, ordered), 10)
+  })
+
+  it('金额非有限数抛异常', () => {
+    expect(() => npv(0.1, [{ date: '2024-01-01', amount: Number.NaN }])).toThrow(TypeError)
+  })
 })
 
 describe('xirr', () => {

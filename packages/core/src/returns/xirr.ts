@@ -1,4 +1,4 @@
-import { daysBetween } from '@fundmanager/shared'
+import { assertDate, daysBetween } from '@fundmanager/shared'
 import { normalizeFlows, type CashFlow } from './cashflow.ts'
 
 /** 一年按 365 天计，与 XIRR 的行业惯例一致（不按 365.25，否则与券商数字对不上）。 */
@@ -19,23 +19,51 @@ const RATE_LOWER_BOUND = -0.9999
 const RATE_UPPER_BOUND = 10
 
 /**
- * 净现值：把各笔现金流按天数贴现到首笔当日再求和。
+ * 取最早一笔的日期，作为贴现基准。
+ *
+ * 「距最早一笔的天数」是 XIRR 的公开定义，基准必须是数组里最早的日期而非首元素：
+ * 乱序输入时首元素未必最早，用它会得到基准错误、数值却看着合理的 NPV。
+ * 日期为 YYYY-MM-DD，字典序即时间序，可直接字符串比较。
+ *
+ * @returns 最早日期；flows 为空时返回 null
+ * @throws {TypeError} 任一 date 非法或 amount 不是有限数
+ */
+function baseDate(flows: readonly CashFlow[]): string | null {
+  let earliest: string | null = null
+  for (const f of flows) {
+    assertDate(f.date, 'CashFlow.date')
+    if (!Number.isFinite(f.amount)) {
+      throw new TypeError(`CashFlow.amount 必须是有限数，收到：${f.amount}`)
+    }
+    if (earliest === null || f.date < earliest) earliest = f.date
+  }
+  return earliest
+}
+
+/**
+ * 净现值：把各笔现金流按天数贴现到最早一笔当日再求和。
+ *
+ * 基准取最早一笔而非首元素，故结果与输入顺序无关。
  *
  * @param rate 年化贴现率
- * @param flows 已归一的现金流（按日期升序，否则贴现天数会算错）
+ * @param flows 现金流，顺序任意
  * @returns 净现值。空数组返回 0
- * @throws {TypeError} flows 中含非法日期（经 daysBetween → assertDate 透传）
+ * @throws {TypeError} 任一 date 非法或 amount 不是有限数
  */
 export function npv(rate: number, flows: readonly CashFlow[]): number {
-  const first = flows[0]
-  if (first === undefined) return 0
+  const base = baseDate(flows)
+  if (base === null) return 0
   return flows.reduce(
-    (sum, f) => sum + f.amount / (1 + rate) ** (daysBetween(first.date, f.date) / DAYS_PER_YEAR),
+    (sum, f) => sum + f.amount / (1 + rate) ** (daysBetween(base, f.date) / DAYS_PER_YEAR),
     0,
   )
 }
 
-/** npv 对 rate 的一阶导数，供牛顿法使用。 */
+/**
+ * npv 对 rate 的一阶导数，供牛顿法使用。
+ *
+ * 仅在 xirr 内部对归一后的现金流调用，此时首元素即最早一笔，基准与 npv 一致。
+ */
 function npvDerivative(rate: number, flows: readonly CashFlow[]): number {
   const first = flows[0]
   if (first === undefined) return 0
