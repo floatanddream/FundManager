@@ -88,9 +88,11 @@ git 已初始化，依赖已装齐。`packages/shared`（数值/日期工具 + �
 
 | 用途 | 命令 | 状态 |
 |---|---|---|
-| 装依赖 | `pnpm install` | 尚未执行 |
+| 装依赖 | `pnpm install` | ✅ 已装齐（pnpm workspace） |
 | 跑 TS | `node path/to/file.ts` | ✅ 已验证可用，**不需要 tsx** |
-| 测试 | `pnpm vitest` | 待建 |
+| 测试 | `pnpm test` | ✅ 可用（Vitest） |
+| 类型检查 | `pnpm typecheck` | ✅ `tsc --noEmit`。**三种价格类型的隔离只有它拦得住**——Vitest 不做类型检查 |
+| 格式化 | `pnpm format` | ✅ Prettier；恒等操作（干净仓库跑完无改动） |
 | 开发 | 待定 | 待建 |
 
 ### Windows / Git Bash 注意
