@@ -333,7 +333,8 @@ export type { AnyPrice, MarketPrice, NavConfirmed, NavEstimate } from './price.t
 ### 8.5 class 的使用（已定）
 
 - `packages/core` 与各解析逻辑：**一律纯函数**
-- 只有**必须持有状态**的（数据库连接、HTTP 客户端）才用 class，且**仅出现在 `apps/server` 层**
+- 只有**必须持有状态**的（数据库连接、HTTP 客户端）才用 class，且**仅出现在有 IO 的层**（`packages/datasource` / `apps/server`）
+  - 2026-11-18 修订：原文写「仅出现在 `apps/server` 层」，但本条自己举的例子就有「HTTP 客户端」——数据源层的 HTTP 内核必须持有请求间隔与退避状态，却在 `packages/datasource`，按原文无解。改为按「有无 IO」划界，才是本条真正要守的东西
 
 ### 8.6 格式化（已定）
 
