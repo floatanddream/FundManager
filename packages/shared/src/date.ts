@@ -25,7 +25,17 @@ export function assertDate(value: string, label = 'date'): string {
   return value
 }
 
-/** 两个 YYYY-MM-DD 之间相差的天数（后者减前者），逆序为负。 */
+/**
+ * 两个 YYYY-MM-DD 之间相差的天数（后者减前者），逆序为负。
+ *
+ * 两侧都先过 `assertDate`：日期算错的代价是收益被计入错误的区间，
+ * 与其让非法输入静默产生 `NaN` 往下传，不如在入口就拦住。
+ *
+ * @param from 起始日期，YYYY-MM-DD
+ * @param to 结束日期，YYYY-MM-DD
+ * @returns 相差的天数，`to` 早于 `from` 时为负数
+ * @throws {TypeError} 任一侧不是合法的 YYYY-MM-DD
+ */
 export function daysBetween(from: string, to: string): number {
   const a = Date.parse(`${assertDate(from, 'from')}T00:00:00Z`)
   const b = Date.parse(`${assertDate(to, 'to')}T00:00:00Z`)

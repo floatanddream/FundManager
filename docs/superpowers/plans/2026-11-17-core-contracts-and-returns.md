@@ -252,7 +252,14 @@ export function assertDate(value: string, label = 'date'): string {
   return value
 }
 
-/** 两个 YYYY-MM-DD 之间相差的天数（后者减前者），逆序为负。 */
+/**
+ * 两个 YYYY-MM-DD 之间相差的天数（后者减前者），逆序为负。
+ *
+ * @param from 起始日期，YYYY-MM-DD
+ * @param to 结束日期，YYYY-MM-DD
+ * @returns 相差天数，可能为负
+ * @throws {TypeError} 任一侧不是合法的 YYYY-MM-DD
+ */
 export function daysBetween(from: string, to: string): number {
   const a = Date.parse(`${assertDate(from, 'from')}T00:00:00Z`)
   const b = Date.parse(`${assertDate(to, 'to')}T00:00:00Z`)
@@ -502,7 +509,14 @@ export type MarketPrice = {
 
 export type AnyPrice = NavConfirmed | NavEstimate | MarketPrice
 
-/** 构造确认净值。日期须为 YYYY-MM-DD，否则抛 TypeError。 */
+/**
+ * 构造确认净值。
+ *
+ * @param value 单位净值
+ * @param date 净值日期，YYYY-MM-DD
+ * @returns 确认净值对象
+ * @throws {TypeError} date 不是合法的 YYYY-MM-DD
+ */
 export function navConfirmed(value: number, date: string): NavConfirmed {
   return { kind: 'nav', value, date: assertDate(date, 'navConfirmed.date') }
 }
