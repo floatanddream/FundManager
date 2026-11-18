@@ -2,7 +2,8 @@
  * 数据源层错误的基类。
  *
  * 存在的意义是让上层能一次捕获「这一层的全部失败」，而不必逐个认具体子类；
- * 同时把四类失败在类型上分开，使「可重试」与「不可重试」在结构上就无法混同。
+ * 同时让「传输失败」与「业务码失败」在类型上分开——**是否重试由内核按状态码判定**
+ * （4xx 不重试、5xx 与网络错误退避重试），故重试与否不再由类型承载。
  */
 export class DataSourceError extends Error {
   constructor(message: string, options?: ErrorOptions) {

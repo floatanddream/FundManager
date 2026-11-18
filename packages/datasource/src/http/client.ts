@@ -56,7 +56,7 @@ export class HttpClient {
   /**
    * 发一次请求，返回已解码的文本。
    *
-   * @throws {HttpError} 重试耗尽后仍未拿到 2xx（网络错误、超时、非 2xx 都归此类）
+   * @throws {HttpError} 未拿到 2xx。网络错误、超时、5xx 会退避重试至耗尽；**4xx 不重试**，立即抛
    * @throws {RangeError} charset 不被本机 Node 支持
    */
   async request(spec: HttpRequestSpec): Promise<HttpResponse> {

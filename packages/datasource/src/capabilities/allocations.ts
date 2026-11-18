@@ -95,7 +95,7 @@ export function assetAllocation(
           // 申购/赎回/总份额，无「占净比」。形态不对就拒用——宁可降级失败，也不静默取错值
           if (!data.assetAllocation.series.some((s) => s.name.includes('占净比'))) {
             throw new DataSourceError(
-              `pingzhongdata/Data_assetAllocation 不是资产占比（${fundCode}）：货币基金此处装的是份额流量（申购/赎回/总份额），按资产占比取用会得到静默错值`,
+              `pingzhongdata/Data_assetAllocation 的系列名不含「占净比」（${fundCode}），不是资产占比——常见于货币基金（此处装的是申购/赎回/总份额），按资产占比取用会得到静默错值`,
             )
           }
           return { value: data.assetAllocation, dataAsOf: data.assetAllocation.categories.at(-1) }
