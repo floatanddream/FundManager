@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+pnpm-lock.yaml
+
+# 保留脚手架生成的样例代码，不重排
+apps/web/
+
+# 手写文档，不重排
+docs/
+*.md
