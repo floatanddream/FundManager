@@ -2,3 +2,5 @@ export { BusinessCodeError, DataSourceError, HttpError, ParseError } from './htt
 export { decodeBody } from './http/encoding.ts'
 export { HttpClient } from './http/client.ts'
 export type { HttpClientOptions, HttpRequestSpec, HttpResponse } from './http/client.ts'
+export type { CacheEntry, CacheStore } from './cache/cacheStore.ts'
+export { MemoryCacheStore } from './cache/memoryCache.ts'
