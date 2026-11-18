@@ -33,3 +33,19 @@ export type {
   TurnoverPage,
   TurnoverRow,
 } from './endpoints/f10.ts'
+export { parsePingzhongdata, pingzhongdataRequest } from './endpoints/pingzhongdata.ts'
+export type {
+  AccNavTrendPoint,
+  CategorizedSeries,
+  FundManager,
+  GrandTotalSeries,
+  IntervalReturns,
+  NamedSeries,
+  NavTrendPoint,
+  PeerPercentPoint,
+  PeerRankPoint,
+  PerformanceEvaluation,
+  Pingzhongdata,
+  ScalePoint,
+  StockPositionPoint,
+} from './endpoints/pingzhongdata.ts'

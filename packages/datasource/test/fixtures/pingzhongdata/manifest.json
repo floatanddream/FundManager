@@ -1,0 +1,19 @@
+{
+  "endpoint": "pingzhongdata",
+  "files": [
+    {
+      "file": "000001.js",
+      "sourceUrl": "https://fund.eastmoney.com/pingzhongdata/000001.js",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T15:25:00+08:00",
+      "dataAsOf": "2026-11-17",
+      "requestHeaders": {},
+      "httpStatus": 200,
+      "contentType": "application/javascript",
+      "encoding": "utf-8-bom",
+      "bytes": 766796,
+      "sha256": "d9ae1926d385665ac0ec63a84bbe4e04d1b463413bd5f08b4e0bd9f1b6b77be0",
+      "notes": "原始响应逐字节存盘（含 UTF-8 BOM，首段夹 /** 测试数据 *​/ 注释），不清洗。本端点不需要任何请求头：实测不带 Referer、不带特殊 UA 均返回 200（curl 8.22.0 默认 UA）。响应是 JS 赋值脚本而非 JSON，含 20+ 变量；Data_netWorthTrend 末条 x=1794844800000/y=0.951 对应当日净值 2026-11-17（= dataAsOf），与 api_fund_lsjz/000001-dividend.json 的 FSRQ=2025-09-19..23 三条逐日同值，可用于交叉验证时间戳按北京时间还原。Last-Modified: Wed, 18 Nov 2026 07:21:10 GMT。"
+    }
+  ]
+}
