@@ -14,7 +14,8 @@ export class DataSourceError extends Error {
 /**
  * 传输层失败：HTTP 非 2xx、网络错误、超时。
  *
- * @remarks 这一类**可重试**——换个时刻再发一次可能就好了。内核的退避重试针对的正是它。
+ * @remarks 网络错误、超时、5xx **可重试**——换个时刻再发一次可能就好了，内核的退避重试针对的正是它们。
+ * 4xx（及未跟随的 3xx）**不重试**：请求本身不对，重发永远不会成功（如缺 Referer 的反爬 404）。
  */
 export class HttpError extends DataSourceError {
   constructor(message: string, options?: ErrorOptions) {

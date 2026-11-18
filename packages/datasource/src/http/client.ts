@@ -35,7 +35,8 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
  * 保证「HTTP 2xx 且拿到了可解码的 body」即返回；`JSON.parse` 与业务码校验
  * （`ErrCode`/`Success`）归各端点解析器——业务码落在响应哪个字段只有解析器知道。
  *
- * 只对**传输失败**（网络错误、超时、非 2xx）退避重试。业务码错误由解析器抛，
+ * 只对**可重试的传输失败**（网络错误、超时、5xx）退避重试——4xx 不重试（请求本身不对，
+ * 重发不会成功，见 `#fetchWithRetry`）。业务码错误由解析器抛，
  * 而解析器在内核之外，故它天然不会被重试——这正是设计要的。
  */
 export class HttpClient {
@@ -69,12 +70,16 @@ export class HttpClient {
     let lastError: HttpError | undefined
     for (let attempt = 0; attempt <= this.#maxRetries; attempt++) {
       await this.#throttle()
+      // 4xx 是「请求本身不对」（如 FundArchivesDatas 缺 Referer 被反爬返回 404），
+      // 重发永远不会成功——标记为不可重试，失败即返回，不浪费退避等待
+      let nonRetryable = false
       try {
         const res = await this.#fetch(spec.url, {
           headers: spec.headers,
           signal: AbortSignal.timeout(this.#timeoutMs),
         })
         if (!res.ok) {
+          nonRetryable = res.status < 500
           throw new HttpError(`HTTP ${res.status}：${spec.url}`)
         }
         return res
@@ -83,6 +88,7 @@ export class HttpClient {
           err instanceof HttpError
             ? err
             : new HttpError(`请求失败（网络错误或超时）：${spec.url}`, { cause: err })
+        if (nonRetryable) break
         if (attempt < this.#maxRetries) {
           // 第 n 次重试等待 minIntervalMs * 2^n：attempt 即刚失败的这次下标，也是重试序号
           await sleep(this.#minIntervalMs * 2 ** attempt)

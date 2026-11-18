@@ -128,7 +128,8 @@ export interface FundDataSource {
 
   /**
    * 资产配置。主源移动端 `fundmobapi/FundMNAssetAllocationNew`，降级 `pingzhongdata.Data_assetAllocation`
-   * （备源无「其他」占比，故降级时 `loss` 非 null）。
+   * （备源无「其他」占比、且货币基金处装的是份额流量会拒用，故降级时 `loss` 非 null）。
+   * 主源只给最新一期，故主源命中时 `loss` 也可能非 null（覆盖变小，设计 §6.4）。
    */
   assetAllocation(fundCode: string): Promise<Fetched<CategorizedSeries>>
 

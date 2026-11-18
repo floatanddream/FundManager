@@ -19,6 +19,32 @@ it('非 2xx 抛 HttpError', async () => {
   await expect(c.request({ url: 'https://x' })).rejects.toThrow(HttpError)
 })
 
+it('4xx 不重试（请求本身不对，重发不会成功），5xx 才重试到底', async () => {
+  const counting = (status: number) => {
+    let calls = 0
+    const f = (async () => {
+      calls++
+      return new Response('x', { status })
+    }) as typeof globalThis.fetch
+    return { f, calls: () => calls }
+  }
+  const notFound = counting(404)
+  await expect(
+    new HttpClient({ fetch: notFound.f, maxRetries: 2, minIntervalMs: 0 }).request({
+      url: 'https://x',
+    }),
+  ).rejects.toThrow(HttpError)
+  expect(notFound.calls()).toBe(1) // 只发了 1 次，没有退避重试
+
+  const serverError = counting(503)
+  await expect(
+    new HttpClient({ fetch: serverError.f, maxRetries: 2, minIntervalMs: 0 }).request({
+      url: 'https://x',
+    }),
+  ).rejects.toThrow(HttpError)
+  expect(serverError.calls()).toBe(3) // 1 次 + 2 次重试
+})
+
 it('网络失败会重试，重试到成功为止', async () => {
   let calls = 0
   const flaky = (async () => {

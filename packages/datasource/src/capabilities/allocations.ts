@@ -51,13 +51,14 @@ export function industryAllocation(
  * 资产配置。主源移动端 `fundmobapi/FundMNAssetAllocationNew`（结构化 JSON、带明确报告期），
  * 降级 `pingzhongdata.Data_assetAllocation`。
  *
- * 两处**不完全等价**，虽设计记为「等价」，但那是就股票/债券/现金三项数值而言：
- * - 主源多一个「其他」占比（备源没有）→ 记进 `loss`；
- * - 主源实测**只返回最新一个报告期**，备源给多期历史——这反而意味着降级到备源会拿到更多期。
+ * 两处**不完全等价**：
+ * - 主源多一个「其他」占比（备源没有）→ 备源降级时记进 `loss`；
+ * - 主源实测**只返回最新一个报告期**，备源给多期历史——主源更新但更窄，覆盖明显变小，
+ *   故主源只有单期时也如实记 `loss`（设计 §6.4：覆盖明显变小必须显示）。
  *
- * 备源还有个更深的坑（不在本任务处理）：`pingzhongdata.Data_assetAllocation` 的内容**随基金类型变**
- * ——货币基金处它装的是「期间申购/期间赎回/总份额」，不是资产占比。此时主源通常可用（不会降级），
- * 故暂不特殊处理，但排障时要记得这一点。
+ * 备源的坑：`pingzhongdata.Data_assetAllocation` 的内容**随基金类型变**——**货币基金**处
+ * 它装的是「期间申购/期间赎回/总份额」（份额流量），不是资产占比。按字段名取用会**静默错值**，
+ * 故降级前校验系列名，形态不对即拒用并抛错（见下）。
  */
 export function assetAllocation(
   http: HttpClient,
@@ -68,6 +69,7 @@ export function assetAllocation(
     key: `assetAllocation:${fundCode}`,
     ttlMs: 7 * DAY_MS,
     cache,
+    lossFor: assetAllocationCoverageLoss,
     sources: [
       {
         name: 'fundmobapi/FundMNAssetAllocationNew',
@@ -89,11 +91,25 @@ export function assetAllocation(
         run: async () => {
           const { text } = await http.request(pingzhongdataRequest(fundCode))
           const data = parsePingzhongdata(text)
+          // 资产占比系列名一律含「占净比」（股票/债券/现金占净比）；货币基金此处装的是
+          // 申购/赎回/总份额，无「占净比」。形态不对就拒用——宁可降级失败，也不静默取错值
+          if (!data.assetAllocation.series.some((s) => s.name.includes('占净比'))) {
+            throw new DataSourceError(
+              `pingzhongdata/Data_assetAllocation 不是资产占比（${fundCode}）：货币基金此处装的是份额流量（申购/赎回/总份额），按资产占比取用会得到静默错值`,
+            )
+          }
           return { value: data.assetAllocation, dataAsOf: data.assetAllocation.categories.at(-1) }
         },
       },
     ],
   })
+}
+
+/** 主源只给最新一期：`CategorizedSeries` 天然是多期趋势，仅 1 期即为覆盖损失（设计 §6.4）。 */
+function assetAllocationCoverageLoss(series: CategorizedSeries): string | null {
+  return series.categories.length <= 1
+    ? '主源仅返回最新一个报告期（无历史趋势）；降级源 pingzhongdata 才给多期'
+    : null
 }
 
 /**

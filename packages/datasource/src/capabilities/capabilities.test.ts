@@ -91,6 +91,54 @@ it('navHistory：lsjz 返回空列表（代码打错）视为失败，不当成�
   )
 })
 
+it('navHistory：不同日期区间不共用缓存条目（窄区间不会截断随后的全量）', async () => {
+  // 模拟 f10/lsjz：按 startDate 过滤 + 按 pageIndex 分页（每页 2 条）
+  const all = ['2026-11-17', '2026-11-14', '2026-11-13', '2026-11-12'].map((d) => lsjzRow(d, 1))
+  const http = new HttpClient({
+    minIntervalMs: 0,
+    maxRetries: 0,
+    fetch: async (url) => {
+      const u = new URL(String(url))
+      const start = u.searchParams.get('startDate')
+      const rows = all.filter((r) => start === null || r.FSRQ >= start)
+      const pageIndex = Number(u.searchParams.get('pageIndex'))
+      return new Response(
+        lsjzPage(rows.slice((pageIndex - 1) * 2, pageIndex * 2), rows.length, pageIndex),
+      )
+    },
+  })
+  const ds = createFundDataSource({ http, cache: new MemoryCacheStore() }) // 共享缓存
+  const ranged = await ds.navHistory('000001', { startDate: '2026-11-14' })
+  expect(ranged.value.rows.map((row) => row.nav.date)).toEqual(['2026-11-17', '2026-11-14'])
+  // 同 TTL 内再取全量：必须重新取数拿到全部，而不是命中上面那条被截断的缓存
+  const full = await ds.navHistory('000001')
+  expect(full.value.rows.map((row) => row.nav.date)).toEqual([
+    '2026-11-17',
+    '2026-11-14',
+    '2026-11-13',
+    '2026-11-12',
+  ])
+})
+
+it('navHistory：降级到备源（pingzhongdata）时也按请求区间裁剪', async () => {
+  const routes = (): HttpClient =>
+    httpRouting([
+      ['f10/lsjz', noReferer],
+      ['pingzhongdata', fixture('pingzhongdata/000001.js')],
+    ])
+  const ranged = await dataSource(routes()).navHistory('000001', {
+    startDate: '2026-11-10',
+    endDate: '2026-11-17',
+  })
+  const full = await dataSource(routes()).navHistory('000001')
+  expect(ranged.source).toBe('pingzhongdata/Data_netWorthTrend')
+  expect(ranged.value.rows.length).toBeGreaterThan(0)
+  expect(ranged.value.rows.length).toBeLessThan(full.value.rows.length)
+  expect(
+    ranged.value.rows.every((row) => row.nav.date >= '2026-11-10' && row.nav.date <= '2026-11-17'),
+  ).toBe(true)
+})
+
 it('holdings：仅前十大时在 loss 里如实说明，month 命中全量块时无损失', async () => {
   const ds = dataSource(httpReturning(fixture('jjcc/000001-2026.html')))
   const latest = await ds.holdings('000001', { year: 2026 })
@@ -141,10 +189,24 @@ it('assetAllocation：主源为移动端；降级到 pingzhongdata 时标出无�
     '净资产',
   ])
   expect(main.value.series[0]!.data).toEqual([78.21])
+  expect(main.loss).toContain('一个报告期') // 主源只有 1 个报告期，覆盖变小须如实记 loss
 
   const backup = await dataSource(
     httpRouting([['pingzhongdata', fixture('pingzhongdata/000001.js')]]),
   ).assetAllocation('000001')
   expect(backup.source).toBe('pingzhongdata/Data_assetAllocation')
   expect(backup.loss).toContain('其他')
+})
+
+it('assetAllocation：货币基金的 pingzhongdata 备源装的是份额流量，拒用并抛出可自解释错误', async () => {
+  // 把真实 fixture 的资产占比换成货币基金的份额流量形态（期间申购/期间赎回/总份额）
+  const moneyMarket = fixture('pingzhongdata/000001.js').replace(
+    /Data_assetAllocation = \{[^;]*\};/,
+    'Data_assetAllocation = {"series":[{"name":"期间申购","data":[0.86]},{"name":"期间赎回","data":[1.77]},{"name":"总份额","data":[27.12]}],"categories":["2026-09-30"]};',
+  )
+  const http = httpRouting([
+    ['FundMNAssetAllocationNew', noReferer],
+    ['pingzhongdata', moneyMarket],
+  ])
+  await expect(dataSource(http).assetAllocation('000001')).rejects.toThrow(/货币基金/)
 })
