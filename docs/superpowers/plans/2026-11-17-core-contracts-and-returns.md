@@ -48,6 +48,7 @@
 | `tsconfig.base.json` | 各包共用编译选项（新增） |
 | `vitest.config.ts` | 根测试配置（新增） |
 | `.prettierrc` | 格式化配置（新增） |
+| `.prettierignore` | 格式化排除范围（新增） |
 | `packages/shared/tsconfig.json` | shared 编译配置（新增） |
 | `packages/shared/src/number.ts` | 数值容差比较（新增） |
 | `packages/shared/src/date.ts` | 日期断言与运算（新增） |
@@ -317,6 +318,24 @@ export { approxEqual } from './number.ts'
   "printWidth": 100,
   "trailingComma": "all"
 }
+```
+
+创建 `.prettierignore`。**必须有**：Task 4 会跑 `pnpm format`，而它是 `prettier --write .`，
+没有排除范围就会把整个仓库重排一遍——包括使用者明确要求保留的 Vite 样例代码，
+以及手写的文档。那会产生一份真实改动被淹没的大 diff。
+
+```
+node_modules/
+dist/
+build/
+pnpm-lock.yaml
+
+# 保留脚手架生成的样例代码，不重排
+apps/web/
+
+# 手写文档，不重排
+docs/
+*.md
 ```
 
 - [ ] **Step 12: 建测试配置与脚本**

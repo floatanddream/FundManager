@@ -45,3 +45,6 @@ desktop.ini
 # 测试与覆盖率
 coverage/
 .vitest-cache/
+
+# SDD 工作区（技能生成的临时产物，不进版本库）
+.superpowers/
