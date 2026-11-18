@@ -1,0 +1,21 @@
+{
+  "endpoint": "qt",
+  "files": [
+    {
+      "file": "multi-symbol.txt",
+      "sourceUrl": "https://qt.gtimg.cn/q=sh000300,sz399006,sh510300,sh600519",
+      "fundCode": "sh000300,sz399006,sh510300,sh600519",
+      "capturedAt": "2026-11-18T16:57:56+08:00",
+      "dataAsOf": "2026-11-18",
+      "requestHeaders": {
+        "User-Agent": "curl/8.22.0"
+      },
+      "httpStatus": 200,
+      "contentType": "text/html; charset=GBK",
+      "encoding": "gbk",
+      "bytes": 2040,
+      "sha256": "7a3549851ba9601eef2d6955f042355ff3116bb0f92f8cd7b3f024d683f732f4",
+      "notes": "原始响应逐字节存盘、不清洗（GBK 字节，非 UTF-8）。fundCode 字段此处承载的是市场代码（指数 sh000300、创业板指 sz399006、场内 ETF sh510300、个股 sh600519），不是基金代码。本端点不需要任何请求头（实测自带 Referer / 桌面 UA 也 200）；requestHeaders 里只是 curl 默认 UA，非必需。响应 4 行，每行形如 v_sh000300=\"1~沪深300~…\";（~ 分隔，一份响应可含多行）——用来覆盖「一次请求多个代码」。字段位置与含义见 src/endpoints/gtimg.ts 的 QT_FIELD 注释表（全部由实测取值反推并核对：字段 3−4=31 涨跌、字段 47=4×1.1 涨停、字段 51≈成交额/成交量/100 均价）。指数无买卖盘、无涨跌停：盘口价为 0、涨停/跌停为哨兵 -1。时间戳字段 30 为 YYYYMMDDHHMMSS（20261118161411），其类型与业务日期隔离。文件为 LF 行尾、2040 字节。"
+    }
+  ]
+}

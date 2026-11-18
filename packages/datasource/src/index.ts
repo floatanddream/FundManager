@@ -64,3 +64,18 @@ export type {
   FundProfilePage,
   SplitRecord,
 } from './endpoints/htmlPages.ts'
+export {
+  decodeGtimgBody,
+  fqklineRequest,
+  parseFqkline,
+  parseQt,
+  qtRequest,
+} from './endpoints/gtimg.ts'
+export type {
+  DailyKline,
+  FqklineQuery,
+  KlineBar,
+  Quote,
+  QuoteLevel,
+  QuoteTimestamp,
+} from './endpoints/gtimg.ts'

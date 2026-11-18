@@ -1,0 +1,37 @@
+{
+  "endpoint": "fqkline",
+  "files": [
+    {
+      "file": "sh000300-day.json",
+      "sourceUrl": "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sh000300,day,2026-10-01,2026-11-18,20,qfq",
+      "fundCode": "sh000300",
+      "capturedAt": "2026-11-18T16:58:56+08:00",
+      "dataAsOf": "2026-11-18",
+      "requestHeaders": {
+        "User-Agent": "curl/8.22.0"
+      },
+      "httpStatus": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "encoding": "utf-8",
+      "bytes": 3122,
+      "sha256": "ef357f56d05b185a33425b255d01b9b972c6f3aecae6ba4fb73cf0356c7d01d8",
+      "notes": "指数样本。原始响应逐字节存盘、不清洗。响应头写 charset=UTF-8，body 是 JSON（不是 JS 赋值）。**承载 K 线的键是 day**（指数无复权数据，即使请求 qfq 也不带前缀）——与个股的 qfqday 不同。data.asOf=2026-11-18（末根 K 线）。每根 K 线是 6 元组 [date, open, close, high, low, volume]：**close 在第 3 位，不是 OHLC**。末根 [\"2026-11-18\",\"3991.16\",\"3983.77\",…] 与 qt 实时行情的今开 3991.16 / 最新价 3983.77 交叉一致。本端点不需要任何请求头（requestHeaders 里只是 curl 默认 UA）。文件纯 ASCII（中文名一律 \\u 转义），无非 ASCII 字节——盘点担心的 GBK 风险未复现。"
+    },
+    {
+      "file": "sh600519-day.json",
+      "sourceUrl": "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sh600519,day,2026-10-01,2026-11-18,20,qfq",
+      "fundCode": "sh600519",
+      "capturedAt": "2026-11-18T17:00:07+08:00",
+      "dataAsOf": "2026-11-17",
+      "requestHeaders": {
+        "User-Agent": "curl/8.22.0"
+      },
+      "httpStatus": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "encoding": "utf-8",
+      "bytes": 3102,
+      "sha256": "4145aab40d3a4775fb666bd36b5cc6f277d25c58a1a68f989e39ea742793c25d",
+      "notes": "个股样本，专门覆盖与指数不同的键名：**承载 K 线的键是 qfqday**（个股有前复权数据，键带 qfq 前缀）。写死 day 会在个股上取不到数据。data.asOf=2026-11-17（末根 K 线日期；capture 时点的 2026-11-18 尚无该个股的日 K 聚合）。末根 close=1457.70 与 qt 里 sh600519 的昨收 1457.70 交叉一致。每根 K 线 [date, open, close, high, low, volume]，close 在第 3 位。本端点不需要任何请求头。文件纯 ASCII。"
+    }
+  ]
+}
