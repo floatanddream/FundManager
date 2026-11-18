@@ -1,0 +1,19 @@
+{
+  "endpoint": "push2/clist/get",
+  "files": [
+    {
+      "file": "bank-BK0475.json",
+      "sourceUrl": "https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=3&fs=b:BK0475&fields=f12,f14",
+      "fundCode": "b:BK0475",
+      "capturedAt": "2026-11-18T17:08:57+08:00",
+      "dataAsOf": "2026-11-18",
+      "requestHeaders": {},
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 224,
+      "sha256": "9e39fa24cf60ad0a393d15949e5d3ffe02b2bdb279c6fc78bd91bc4fc12aee2e",
+      "notes": "本端点不需要任何请求头，requestHeaders 故为空。fundCode 字段此处承载的是**板块筛选串**（b:BK0475 = 银行板块），不是基金代码。`diff` 是**字典**（{序:{f12,f14}}），不是数组——按数组遍历会得到 undefined。pz=3 只取前 3 条，total=42。**实测 `fs=i:1.000300` 不返回成分股**（只回指数本身 total=1）；指数成分要用板块代码 `b:BKxxxx`，BK 映射未穷举（已知遗留项）。dataAsOf 取抓取日（成分表天级更新）。"
+    }
+  ]
+}

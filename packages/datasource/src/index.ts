@@ -79,3 +79,12 @@ export type {
   QuoteLevel,
   QuoteTimestamp,
 } from './endpoints/gtimg.ts'
+export {
+  clistRequest,
+  parseSectorMembers,
+  parseStockIndustry,
+  stockRequest,
+} from './endpoints/push2.ts'
+export type { ClistQuery, SectorMember, SectorMembers, StockIndustry } from './endpoints/push2.ts'
+export { fundcodeRequest, parseFundCodeList } from './endpoints/fundcode.ts'
+export type { FundCodeEntry } from './endpoints/fundcode.ts'

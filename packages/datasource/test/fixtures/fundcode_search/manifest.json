@@ -1,0 +1,19 @@
+{
+  "endpoint": "fundcode_search",
+  "files": [
+    {
+      "file": "truncated-sample.js",
+      "sourceUrl": "https://fund.eastmoney.com/js/fundcode_search.js",
+      "fundCode": "N/A（全量基金代码表，非单只基金）",
+      "capturedAt": "2026-11-18T17:10:26+08:00",
+      "dataAsOf": "2026-11-17",
+      "requestHeaders": {},
+      "httpStatus": 200,
+      "contentType": "application/javascript",
+      "encoding": "utf-8-bom",
+      "bytes": 781,
+      "sha256": "81d0962d51cf3e3274f22f15bf080a2650773f11b921d0f4070cf648e3965ff8",
+      "notes": "**截断样本，仅保留首尾若干条**——本文件的 bytes/sha256 对应的是此 781 字节的截断文件，不是原始响应。原始响应实测 **3,231,854 字节 / 28,370 条**（sha256=02c3bca12a6499f54ed42801bcb54b7f3a85b8ba93cc4b1d9175fe9eb5d030a6）。盘点 §5.1 明确本端点「不建议固化 fixture」（3.2 MB、结构极简、解析几乎不会错），故按 §5.2 例外条款只存首尾 3+3 条。本样本保留原始 UTF-8 BOM（首字节 EF BB BF），用于验证解析器自带去 BOM；形态为 JS 赋值语句 `var r = [[…],[…]];`（不是 JSON，解析走「取赋值右侧数组字面量再 JSON.parse」，不 eval）。每行 5 元组：代码/拼音简写/名称/类型/全拼。BOM 之外的字节逐字节来自原始响应（首 3 条 + 末 3 条）。"
+    }
+  ]
+}

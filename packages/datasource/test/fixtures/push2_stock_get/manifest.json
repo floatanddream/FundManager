@@ -1,0 +1,19 @@
+{
+  "endpoint": "push2/stock/get",
+  "files": [
+    {
+      "file": "sz300308.json",
+      "sourceUrl": "https://push2.eastmoney.com/api/qt/stock/get?secid=0.300308&fields=f57,f58,f127,f128",
+      "fundCode": "300308",
+      "capturedAt": "2026-11-18T17:08:50+08:00",
+      "dataAsOf": "2026-11-18",
+      "requestHeaders": {},
+      "httpStatus": 200,
+      "contentType": "application/json; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 158,
+      "sha256": "a6100eb514f7bbbc5048dc29948ee3819840a2d5174cbb5f42dadd9e4fb5eb8d",
+      "notes": "本端点不需要任何请求头（实测不带 Referer / 桌面 UA 均 200），requestHeaders 故为空。fundCode 字段此处承载的是**股票代码**（300308 中际旭创），不是基金代码。secid=0.300308：市场号 `0.`=深市、`1.`=沪市，取错会返回别的股票或空。响应 f127=\"通信设备\" 是**细分行业名**，与 HYPZ 的 HYMC（国民经济行业分类）口径不同、不可混用（盘点 §6 #17）。dataAsOf 取「基本静态」——分类无天然时点，此处取抓取日。**本次未能抓到 `data:null`（代码不存在）与沪市样本**：抓完本文件后 push2.eastmoney.com 被网络拦挡（DNS 返回 127.255.0.1，curl/node/WebFetch 全 000），故 data:null 分支由测试内构造的响应文本覆盖（计划 Step B 允许）。"
+    }
+  ]
+}
