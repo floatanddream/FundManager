@@ -57,3 +57,10 @@ export type {
   JjccQuery,
   ScaleShareRow,
 } from './endpoints/fundArchives.ts'
+export { fhspRequest, jbgkRequest, parseFhsp, parseJbgk } from './endpoints/htmlPages.ts'
+export type {
+  DividendRecord,
+  DividendSplitPage,
+  FundProfilePage,
+  SplitRecord,
+} from './endpoints/htmlPages.ts'

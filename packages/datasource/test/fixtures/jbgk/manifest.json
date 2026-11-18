@@ -1,0 +1,33 @@
+{
+  "endpoint": "jbgk",
+  "files": [
+    {
+      "file": "000001.html",
+      "sourceUrl": "https://fundf10.eastmoney.com/jbgk_000001.html",
+      "fundCode": "000001",
+      "capturedAt": "2026-11-18T16:33:42+08:00",
+      "dataAsOf": "2026-09-30",
+      "requestHeaders": {},
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 50446,
+      "sha256": "0bedc28221541ed038eba036ee44e44953b7d2893a0a9596d2b3da3ffb2caa2e",
+      "notes": "原始响应逐字节存盘、不清洗。本端点不需要任何请求头（实测不带 Referer、用 curl 默认 UA 即 200）。dataAsOf 取页面里规模字段的报告期「截止至：2026年09月30日」。核心特征：概况表（<table class=\"info w790\">）的字段是 <th>标签</th><td>值</td> 平铺，同一 <tr> 里夹两组（如「基金代码」与「基金类型」同行、「业绩比较基准」与「跟踪标的」同行），故必须按 <th> 文本定位、不能按行取。实测另有两个结构坑（实现期新增，盘点未记）：① 部分 <td> 根本没有闭合——「基金代码」那行是 <td>000001（前端）、000002（后端）<th>基金类型</th>，只认 </td> 会取不到值或把下一组的标签吃进来；② 页面侧边栏导航也用 <th>（<th class=\"nowrap\"><h3>热点推荐</h3>…）且没有 <td>，故解析必须限定在概况表内。业绩比较基准=中证800成长指数收益率*70%+中债-综合全价(总值)指数收益率*30%；跟踪标的=该基金无跟踪标的（主动基金）。"
+    },
+    {
+      "file": "011609.html",
+      "sourceUrl": "https://fundf10.eastmoney.com/jbgk_011609.html",
+      "fundCode": "011609",
+      "capturedAt": "2026-11-18T16:33:43+08:00",
+      "dataAsOf": "2026-09-30",
+      "requestHeaders": {},
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "encoding": "utf-8",
+      "bytes": 52253,
+      "sha256": "d3112176db73ab0b755c95efaf0f3b370a2a4c4ec7ee59bec61a51e0bb5c9d3e",
+      "notes": "原始响应逐字节存盘、不清洗。联接基金（易方达上证科创50联接C）样本，用来钉住 CONSTRAINTS/04-hard-rules.md §4 规则 5：有效暴露取自业绩比较基准（上证科创板50成份指数收益率*95%+活期存款利率(税后)*5%），不是「股票仓位」字段（该基金股票仓位实测 0.41%，字面代入得出荒谬结果）。跟踪标的=上证科创板50成份指数（主动基金此处是「该基金无跟踪标的」这类文案，故跟踪标的字段不能折成 null，否则与「没抓到」分不开）。基金类型=指数型-股票。"
+    }
+  ]
+}

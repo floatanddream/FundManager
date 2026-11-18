@@ -40,6 +40,17 @@
 *.db     binary
 *.sqlite binary
 
+# ── 端点原始响应 fixture：禁止任何行尾转换 ──────────────────────
+#
+# 这些文件是**外部接口的原始响应字节**，`manifest.json` 里的 `sha256` 就是对它们的校验
+# （见 docs/research/2026-11-18-datasource-inventory.md §7.7）。上面的 `eol=lf` 会把
+# CRLF 的响应改写成 LF，于是「仓库里的文件」与 manifest 记的哈希对不上——在别的机器上
+# 克隆下来校验必然失败，而 `refresh-fixtures.ts` 重抓回来的又是 CRLF，会反复打架。
+# 实测 `jbgk_*.html` / `fhsp_*.html` 两个页面确实返回 CRLF（响应 Content-Length 与
+# CRLF 字节数一致），故这里显式声明 `-text`，让字节原样进出。
+# Prettier 已被 .prettierignore 排除同一目录，两边不冲突。
+packages/datasource/test/fixtures/** -text
+
 # ── 锁文件与生成物：折叠 diff ──────────────────────────────────
 # 锁文件逐行 diff 没有阅读价值，且在 GitHub 上会被计为语言统计
 pnpm-lock.yaml  -diff linguist-generated
