@@ -44,6 +44,14 @@ it('事件缺失时用累计净值反推分红', () => {
   ])
 })
 
+it('perUnit 与 per10Unit 口径不一致时抛错', () => {
+  const rows = [
+    row('2024-01-01', 1.5, 1.5),
+    row('2024-01-02', 1.4, 1.5, { kind: 'dividend', perUnit: 0.1, per10Unit: 2 }),
+  ]
+  expect(() => toAdjustedSeries(rows, '011609')).toThrow('per10Unit=2')
+})
+
 it('分红金额与累计净值矛盾、或事件无从解析时抛错，不猜', () => {
   const conflict = [row('2024-01-01', 1.5, 1.5), row('2024-01-02', 1.4, 1.7, dividend(0.1))]
   expect(() => toAdjustedSeries(conflict, '011609')).toThrow('011609 2024-01-02')

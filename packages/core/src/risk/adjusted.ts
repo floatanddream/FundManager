@@ -49,12 +49,22 @@ function dividendPerUnit(event: NavSeriesEvent): number | null {
  * 事件金额存在时用它交叉校验，矛盾超过舍入误差即抛错——不猜、不静默挑一个。
  *
  * **份额折算**：1 份折成 k 份、单位净值除以 k，持有人市值不变，当日市值 = P·k，
- * 当日总收益按 (P·k)/P₋ − 1，k 取事件的 `perUnit`。累计净值在折算日是否被同比例调整
- * 无法在本地数据上验证，故折算日**不做**累计净值交叉校验，只认事件比例。
+ * 当日总收益按 (P·k)/P₋ − 1，k 取事件的 `perUnit`。
+ *
+ * **折算日的已知局限**：`LJJZ` 在折算日是否被同比例调整无法在本地数据上验证，
+ * 故折算日**不做**累计净值交叉校验，只认事件比例。若接口的折算口径与假设不符
+ * （例如 `perUnit` 实际是「每 10 份」），该日复权结果会错。
  *
  * **降级与假设**：普通日与分红日只要至少一侧数据在场即可复权。
  * 未知事件（`kind: 'unknown'`）或缺金额的事件且无累计净值可反推时抛错，
  * 绝不按普通日静默处理——那会把分红记成亏损。
+ *
+ * **备源无事件且无累计净值**：两处都缺意味着这一天没有任何可用于判断分红的信息，
+ * 只能按普通日处理——**这种数据下的复权结果可能含假回撤**，调用方应把备源降级
+ * 视为风险指标的口径损失（`Fetched.loss`）。
+ *
+ * 分红事件若同时给出 `perUnit` 与 `per10Unit`，校验后者应为前者的 10 倍；
+ * 不一致说明接口口径变了，拒绝复权而不是按错误单位继续算。
  *
  * @param rows 净值历史行，顺序不限，按日期升序输出；同一日期重复会由 assertNavSeries 拦下
  * @param fundCode 出错时用于定位的基金代码
@@ -84,6 +94,16 @@ export function toAdjustedSeries(
     // 累计净值反推的每份分红（ΔLJJZ − ΔP）；两侧都有累计净值才算得出，|值| 在容差内视作 0
     const implied = acc !== null && prevAcc !== null ? acc - prevAcc - (nav - prevNav) : null
     const impliedDividend = implied !== null && Math.abs(implied) > ACC_TOLERANCE ? implied : null
+    if (
+      event?.kind === 'dividend' &&
+      event.perUnit !== null &&
+      event.per10Unit !== null &&
+      !approxEqual(event.per10Unit, event.perUnit * 10, ACC_TOLERANCE)
+    ) {
+      throw new TypeError(
+        `${fundCode} ${row.nav.date} 的分红单位口径不一致：perUnit=${event.perUnit}、per10Unit=${event.per10Unit}（后者应为前者的 10 倍），拒绝复权`,
+      )
+    }
     const dividend = event?.kind === 'dividend' ? dividendPerUnit(event) : null
     const split = event?.kind === 'split' ? event.perUnit : null
 
