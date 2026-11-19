@@ -13,3 +13,4 @@ export type {
 } from './ledger/types.ts'
 export { reconcile } from './ledger/reconcile.ts'
 export type { ReconcileInput, ReconcileResult } from './ledger/reconcile.ts'
+export { dailyReturns } from './risk/series.ts'
