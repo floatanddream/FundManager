@@ -160,9 +160,10 @@ it('navHistory：前两源都失败时降级到 fundmobapi，仍标出丢失分�
   expect(r.value.rows[0]!.nav).toEqual({ kind: 'nav', value: 0.951, date: '2026-11-17' })
 })
 
-it('holdings：主源失败降级到移动端时，loss 与「本次仅前十大」可区分', async () => {
+it('holdings：未指定年份/月份（要最新）时主源失败可降级到移动端，loss 与「本次仅前十大」可区分', async () => {
   const http = httpRouting([['FundMNInverstPosition', fixture('fundmobapi_position/000001.json')]])
-  const r = await dataSource(http).holdings('000001', { year: 2026 })
+  // 没给 year/month：「给我最新的」——备源返回最新一期正是所要，降级合法
+  const r = await dataSource(http).holdings('000001')
   expect(r.source).toBe('fundmobapi/FundMNInverstPosition')
   expect(r.loss).toContain('降级')
   expect(r.value.reportDate).toBe('2026-09-30')
@@ -173,6 +174,20 @@ it('holdings：主源失败降级到移动端时，loss 与「本次仅前十大
     shares: null,
     marketValue: null,
   })
+})
+
+it('holdings：显式指定年份且主源失败时抛错，绝不返回备源的最新一期', async () => {
+  // 备源可用并返回它自己的最新一期 2026-09-30——正是「要 2020，给你 2026」的来源，必须拦住
+  const http = httpRouting([
+    ['year=2020', jjccEmptyYear],
+    ['FundMNInverstPosition', fixture('fundmobapi_position/000001.json')],
+  ])
+  const error = await dataSource(http)
+    .holdings('000001', { year: 2020 })
+    .catch((e: unknown) => e)
+  expect(error).toBeInstanceOf(DataSourceError)
+  expect(String(error)).toMatch(/不提供指定年份.*2020.*错误年份/) // 说清不认年份、不能顶替
+  expect(String(error)).not.toContain('2026-09-30') // 备源的期绝不进入结果
 })
 
 it('assetAllocation：主源为移动端；降级到 pingzhongdata 时标出无「其他」占比', async () => {

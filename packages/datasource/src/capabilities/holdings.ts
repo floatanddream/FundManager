@@ -50,13 +50,18 @@ export function holdings(
         // 与主源的 lossFor 文案必须可区分：这句是「主源挂了」的信号，主源那句是「这次本来就只有前十大」
         loss: '主源 FundArchivesDatas/jjcc 失败，已降级到移动端 FundMNInverstPosition：它只提供前十大持仓（且无持股数、持仓市值），不是该期的真实覆盖',
         run: async () => {
-          // 备源不认 `month`，只会返回它自己的「最新一期」。调用方指定了月份时若拿它顶，
-          // 「要 6 月」就会被换成「给你 9 月」——正是本项目要杜绝的静默错值。直接抛，让整条链
-          // 失败、错误如实返回，绝不返回备源的期。
-          if (month !== undefined) {
+          // 备源不认 `year` / `month`，只会返回它自己的「最新一期」。调用方指定了年份或月份时
+          // 若拿它顶，「要 2020」就会被换成「给你 2026」、「要 6 月」会变成「给你 9 月」——
+          // 正是本项目要杜绝的静默错值。直接抛，让整条链失败、错误如实返回，绝不返回备源的期。
+          // 只有「给我最新的」（year、month 都没给）时备源可用：此时最新一期正是所要。
+          if (fixedYear || month !== undefined) {
             throw new DataSourceError(
-              `fundmobapi/FundMNInverstPosition 不提供按期（month）查询，只返回其最新一期，` +
-                `指定月份时不能作为备源（${fundCode}）`,
+              month !== undefined
+                ? `fundmobapi/FundMNInverstPosition 不提供按期（month）查询，只返回其最新一期，` +
+                    `指定月份时不能作为备源（${fundCode}）`
+                : `fundmobapi/FundMNInverstPosition 不提供指定年份（year）查询，只返回其最新一期` +
+                    `（具体报告期取决于该接口当前数据），不能作为指定年份时的备源：` +
+                    `请求的是 ${year} 年，用它的最新一期顶替就是返回错误年份的持仓（${fundCode}）`,
             )
           }
           const { text } = await http.request(inverstPositionRequest(fundCode))
