@@ -1,10 +1,15 @@
 import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
+import type { AdjustedNav } from '@fundmanager/shared'
 import { annualizedVolatility, downsideDeviation } from './volatility.ts'
 
+/** 造一个已复权的确认净值点。风险函数的输入必须是复权口径，故测试里统一经这里构造。 */
+const adj = (v: number, date: string): AdjustedNav =>
+  navConfirmed(v, date) as unknown as AdjustedNav
+
 /** 从 2024-01-01 起逐日递增地搭一条确认净值序列 */
-const series = (values: readonly number[]): ReturnType<typeof navConfirmed>[] =>
-  values.map((v, i) => navConfirmed(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
+const series = (values: readonly number[]): AdjustedNav[] =>
+  values.map((v, i) => adj(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
 
 // 日收益恰为 [0.5, 0, -0.5]，全是二进制精确值，可手算
 const sample = series([1, 1.5, 1.5, 0.75])

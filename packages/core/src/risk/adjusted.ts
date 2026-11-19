@@ -1,5 +1,5 @@
 import { approxEqual, navConfirmed } from '@fundmanager/shared'
-import type { NavConfirmed } from '@fundmanager/shared'
+import type { AdjustedNav, NavConfirmed } from '@fundmanager/shared'
 import { assertNavSeries } from './series.ts'
 
 /** 附在净值行上的分红/折算事件，与 `packages/datasource` 的 `NavEvent` 结构兼容。 */
@@ -74,7 +74,7 @@ function dividendPerUnit(event: NavSeriesEvent): number | null {
 export function toAdjustedSeries(
   rows: readonly NavSeriesRow[],
   fundCode = '该基金',
-): NavConfirmed[] {
+): AdjustedNav[] {
   if (rows.length === 0) return []
   const sorted = [...rows].sort((a, b) =>
     a.nav.date < b.nav.date ? -1 : a.nav.date > b.nav.date ? 1 : 0,
@@ -84,7 +84,7 @@ export function toAdjustedSeries(
   let prevNav = first.nav.value
   let prevAcc = first.accNav
   let prevAdjusted = first.nav.value
-  const adjusted: NavConfirmed[] = [navConfirmed(first.nav.value, first.nav.date)]
+  const adjusted: AdjustedNav[] = [asAdjusted(navConfirmed(first.nav.value, first.nav.date))]
 
   for (let i = 1; i < sorted.length; i++) {
     const row = sorted[i]!
@@ -129,11 +129,22 @@ export function toAdjustedSeries(
     }
 
     prevAdjusted *= ratio
-    adjusted.push(navConfirmed(prevAdjusted, row.nav.date))
+    adjusted.push(asAdjusted(navConfirmed(prevAdjusted, row.nav.date)))
     prevNav = nav
     prevAcc = acc
   }
 
   assertNavSeries(adjusted)
   return adjusted
+}
+
+/**
+ * 把已确认的复权净值打上品牌。**只在 `toAdjustedSeries` 内部使用**——
+ * 它把不变量（「这个值已经除过分红影响」）从运行时承诺提升为编译期事实。
+ *
+ * 不导出：一旦导出，本层之外就能随手把任意 `NavConfirmed` 洗成 `AdjustedNav`，
+ * 品牌类型立刻失去意义。
+ */
+function asAdjusted(nav: NavConfirmed): AdjustedNav {
+  return nav as AdjustedNav
 }

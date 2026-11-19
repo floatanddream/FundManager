@@ -16,6 +16,17 @@ export type NavConfirmed = {
   readonly date: string
 }
 
+/**
+ * **已复权**的确认净值。风险与收益计算只接受它，不接受裸的 `NavConfirmed`。
+ *
+ * 存在的理由：未复权的单位净值（`DWJZ`）与复权净值在类型上完全一样，编译器分不出来。
+ * 分红除息日 `DWJZ` 会机械下跌，直接算风险就在那一天造出假亏损与假回撤——
+ * 而且结果「看着合理」，没有任何报错。品牌类型让这种误用**编译不过**。
+ *
+ * 只能由 `@fundmanager/core` 的 `toAdjustedSeries()` 产出。
+ */
+export type AdjustedNav = NavConfirmed & { readonly __adjusted: unique symbol }
+
 /** 盘中估值：由跟踪指数涨跌推算。**仅供参考，不得参与收益计算。** */
 export type NavEstimate = {
   readonly kind: 'estimate'

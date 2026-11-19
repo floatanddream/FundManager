@@ -1,10 +1,15 @@
 import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
+import type { AdjustedNav } from '@fundmanager/shared'
 import { rollingReturnDistribution } from './rolling.ts'
 
+/** 造一个已复权的确认净值点。风险函数的输入必须是复权口径，故测试里统一经这里构造。 */
+const adj = (v: number, date: string): AdjustedNav =>
+  navConfirmed(v, date) as unknown as AdjustedNav
+
 /** 从 2024-01-01 起逐日递增地搭一条确认净值序列 */
-const series = (values: readonly number[]): ReturnType<typeof navConfirmed>[] =>
-  values.map((v, i) => navConfirmed(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
+const series = (values: readonly number[]): AdjustedNav[] =>
+  values.map((v, i) => adj(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
 
 it('[1, 2, 1, 1, 1, 2] 持有 2 天的窗口、亏损概率与分位数', () => {
   // 起点 01-01..01-04 各有一个 2 天后的窗口：收益 0, -0.5, 0, 1；01-05、01-06 之后无 ≥2 天观测 → 4 个窗口
@@ -30,7 +35,7 @@ it('跨缺失交易日按日期取首个足够远的观测（Review Focus #5）'
   // 起点 01-05 只差 01-06（1 天），不足 2 天 → 无窗口
   // 若误按索引取第 2 个点，起点 01-01 会落在 01-06（值 4）→ 收益 +300%，与预期不符
   const dates = ['2024-01-01', '2024-01-05', '2024-01-06']
-  const s = [1, 2, 4].map((v, i) => navConfirmed(v, dates[i]!))
+  const s = [1, 2, 4].map((v, i) => adj(v, dates[i]!))
   const stats = rollingReturnDistribution(s, 2)!
   expect(stats.windows).toBe(1)
   expect(stats.maxReturn).toBeCloseTo(1, 10) // 起点 01-01 → 01-05
@@ -47,6 +52,6 @@ it('holdingDays 非正整数抛异常', () => {
 })
 
 it('日期乱序抛异常（Review Focus #1）', () => {
-  const s = [navConfirmed(1, '2024-01-02'), navConfirmed(2, '2024-01-01')]
+  const s = [adj(1, '2024-01-02'), adj(2, '2024-01-01')]
   expect(() => rollingReturnDistribution(s, 1)).toThrow(TypeError)
 })

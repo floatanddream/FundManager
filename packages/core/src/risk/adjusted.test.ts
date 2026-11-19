@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
+import type { AdjustedNav } from '@fundmanager/shared'
 import { toAdjustedSeries } from './adjusted.ts'
 import type { NavSeriesRow } from './adjusted.ts'
 import { maxDrawdown } from './drawdown.ts'
@@ -23,7 +24,9 @@ it('分红日不复权造成假回撤，复权后没有', () => {
     row('2024-01-02', 1.4, 1.5, dividend(0.1)),
     row('2024-01-03', 1.47, 1.57),
   ]
-  const raw = rows.map((r) => r.nav)
+  // 未复权的裸序列现在**编译期**就进不了风险函数——这正是品牌类型要的效果。
+  // 这里显式 cast 只是为了保留数值对照，证明「如果不拦，会错多少」。
+  const raw = rows.map((r) => r.nav) as unknown as AdjustedNav[]
   expect(maxDrawdown(raw)).toBeCloseTo(0.0667, 3) // 1.5 → 1.4 的假回撤
   const adjusted = toAdjustedSeries(rows)
   // 手算：(1.4+0.1)/1.5 = 1，再 1.47/1.4 = 1.05

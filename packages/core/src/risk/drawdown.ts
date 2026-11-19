@@ -1,5 +1,5 @@
 import { approxEqual, daysBetween } from '@fundmanager/shared'
-import type { NavConfirmed } from '@fundmanager/shared'
+import type { AdjustedNav } from '@fundmanager/shared'
 import { assertNavSeries } from './series.ts'
 
 /**
@@ -12,7 +12,7 @@ import { assertNavSeries } from './series.ts'
  * @returns 最大回撤；不足 2 点返回 null
  * @throws {TypeError} 序列非法（透传 assertNavSeries）
  */
-export function maxDrawdown(series: readonly NavConfirmed[]): number | null {
+export function maxDrawdown(series: readonly AdjustedNav[]): number | null {
   assertNavSeries(series)
   if (series.length < 2) return null
   let peak = series[0]!.value
@@ -35,7 +35,7 @@ export function maxDrawdown(series: readonly NavConfirmed[]): number | null {
  * @returns 修复所需天数；从未回撤或结束时仍未修复均返回 null
  * @throws {TypeError} 序列非法（透传 assertNavSeries）
  */
-export function drawdownRecoveryDays(series: readonly NavConfirmed[]): number | null {
+export function drawdownRecoveryDays(series: readonly AdjustedNav[]): number | null {
   assertNavSeries(series)
   if (series.length < 2) return null
 
@@ -84,7 +84,7 @@ export function drawdownRecoveryDays(series: readonly NavConfirmed[]): number | 
  * @returns 当前回撤；不足 2 点返回 null
  * @throws {TypeError} 序列非法（透传 assertNavSeries）
  */
-export function currentDrawdown(series: readonly NavConfirmed[]): number | null {
+export function currentDrawdown(series: readonly AdjustedNav[]): number | null {
   assertNavSeries(series)
   if (series.length < 2) return null
   let peak = series[0]!.value

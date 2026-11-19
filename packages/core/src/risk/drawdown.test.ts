@@ -1,10 +1,15 @@
 import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
+import type { AdjustedNav } from '@fundmanager/shared'
 import { currentDrawdown, drawdownRecoveryDays, maxDrawdown } from './drawdown.ts'
 
+/** 造一个已复权的确认净值点。风险函数的输入必须是复权口径，故测试里统一经这里构造。 */
+const adj = (v: number, date: string): AdjustedNav =>
+  navConfirmed(v, date) as unknown as AdjustedNav
+
 /** 从 2024-01-01 起逐日递增地搭一条序列 */
-const series = (values: readonly number[]): ReturnType<typeof navConfirmed>[] =>
-  values.map((v, i) => navConfirmed(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
+const series = (values: readonly number[]): AdjustedNav[] =>
+  values.map((v, i) => adj(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
 
 it('最大回撤取峰值到谷底的最大跌幅', () => {
   expect(maxDrawdown(series([1, 2, 1, 3]))).toBe(0.5) // 峰值 2 → 谷底 1
@@ -20,9 +25,7 @@ it('序列不足两点 → null', () => {
 })
 
 it('日期乱序抛异常（Review Focus #1）', () => {
-  expect(() => maxDrawdown([navConfirmed(1, '2024-01-02'), navConfirmed(2, '2024-01-01')])).toThrow(
-    TypeError,
-  )
+  expect(() => maxDrawdown([adj(1, '2024-01-02'), adj(2, '2024-01-01')])).toThrow(TypeError)
 })
 
 it('[1, 2, 1, 1, 1, 2] 的回撤修复期是 3 天', () => {

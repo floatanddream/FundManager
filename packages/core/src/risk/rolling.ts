@@ -1,5 +1,5 @@
 import { daysBetween } from '@fundmanager/shared'
-import type { NavConfirmed } from '@fundmanager/shared'
+import type { AdjustedNav } from '@fundmanager/shared'
 import { assertNavSeries } from './series.ts'
 
 /** 滚动持有收益的分布统计量。所有收益率是简单收益。 */
@@ -50,7 +50,7 @@ function quantile(sorted: readonly number[], p: number): number {
  * @throws {TypeError} holdingDays 非正整数，或序列非法（透传 assertNavSeries）
  */
 export function rollingReturnDistribution(
-  series: readonly NavConfirmed[],
+  series: readonly AdjustedNav[],
   holdingDays: number,
 ): RollingReturnStats | null {
   if (!Number.isInteger(holdingDays) || holdingDays <= 0) {

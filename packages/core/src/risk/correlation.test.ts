@@ -1,12 +1,15 @@
 import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
+import type { AdjustedNav } from '@fundmanager/shared'
 import { correlationMatrix } from './correlation.ts'
 
+/** 造一个已复权的确认净值点。风险函数的输入必须是复权口径，故测试里统一经这里构造。 */
+const adj = (v: number, date: string): AdjustedNav =>
+  navConfirmed(v, date) as unknown as AdjustedNav
+
 /** 按给定日期与数值搭一条确认净值序列 */
-const series = (
-  dates: readonly string[],
-  values: readonly number[],
-): ReturnType<typeof navConfirmed>[] => values.map((v, i) => navConfirmed(v, dates[i]!))
+const series = (dates: readonly string[], values: readonly number[]): AdjustedNav[] =>
+  values.map((v, i) => adj(v, dates[i]!))
 
 const D = ['2024-01-01', '2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05']
 
@@ -70,7 +73,7 @@ it('无法计算时返回 null（序列不足、共同日期不足、零方差�
 })
 
 it('序列日期乱序抛异常（Review Focus #1）', () => {
-  const bad = [navConfirmed(1, '2024-01-02'), navConfirmed(2, '2024-01-01')]
+  const bad = [adj(1, '2024-01-02'), adj(2, '2024-01-01')]
   expect(() => correlationMatrix([A, bad])).toThrow(TypeError)
 })
 

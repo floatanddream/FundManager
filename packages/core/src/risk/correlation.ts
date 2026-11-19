@@ -1,5 +1,5 @@
 import { daysBetween, navConfirmed } from '@fundmanager/shared'
-import type { NavConfirmed } from '@fundmanager/shared'
+import type { AdjustedNav } from '@fundmanager/shared'
 import { assertNavSeries, dailyReturns } from './series.ts'
 
 /** 默认相关性窗口：约一个 A 股交易年。 */
@@ -23,7 +23,7 @@ export type CorrelationResult = {
  * 所有序列共同拥有的日期，升序。
  * 各基金历史长度与停牌日不同，必须先在共同日期上对齐再比。
  */
-function intersectDates(seriesList: readonly (readonly NavConfirmed[])[]): string[] {
+function intersectDates(seriesList: readonly (readonly AdjustedNav[])[]): string[] {
   const counts = new Map<string, number>()
   for (const s of seriesList) {
     for (const p of s) counts.set(p.date, (counts.get(p.date) ?? 0) + 1)
@@ -43,9 +43,11 @@ function intersectDates(seriesList: readonly (readonly NavConfirmed[])[]): strin
  * 与其它序列的收益错位，相关性因此轻微失真。本函数不做分段剔除（最简优先），
  * 失真程度由 `CorrelationResult.maxGapDays` 暴露给展示层标注。
  */
-function alignReturns(series: readonly NavConfirmed[], commonDates: readonly string[]): number[] {
+function alignReturns(series: readonly AdjustedNav[], commonDates: readonly string[]): number[] {
   const byDate = new Map(series.map((p) => [p.date, p.value]))
-  return dailyReturns(commonDates.map((date) => navConfirmed(byDate.get(date)!, date)))
+  return dailyReturns(
+    commonDates.map((date) => navConfirmed(byDate.get(date)!, date) as AdjustedNav),
+  )
 }
 
 /**
@@ -84,7 +86,7 @@ function pearson(a: readonly number[], b: readonly number[]): number {
  * @throws {TypeError} window 不是不小于 2 的整数，或任一序列非法（透传 assertNavSeries）
  */
 export function correlationMatrix(
-  seriesList: readonly (readonly NavConfirmed[])[],
+  seriesList: readonly (readonly AdjustedNav[])[],
   options: { window?: number } = {},
 ): CorrelationResult | null {
   const window = options.window ?? DEFAULT_WINDOW

@@ -1,4 +1,4 @@
-import type { NavConfirmed } from '@fundmanager/shared'
+import type { AdjustedNav } from '@fundmanager/shared'
 import { dailyReturns } from './series.ts'
 
 /** A 股年均交易日。年化按 √252 放大，与券商口径一致。 */
@@ -23,7 +23,7 @@ function assertPeriodsPerYear(periodsPerYear: number): void {
  * @throws {TypeError} 序列非法（透传 assertNavSeries），或 periodsPerYear 非正
  */
 export function annualizedVolatility(
-  series: readonly NavConfirmed[],
+  series: readonly AdjustedNav[],
   options: { periodsPerYear?: number } = {},
 ): number | null {
   const periodsPerYear = options.periodsPerYear ?? TRADING_DAYS_PER_YEAR
@@ -49,7 +49,7 @@ export function annualizedVolatility(
  * @throws {TypeError} 序列非法、target 非有限数，或 periodsPerYear 非正
  */
 export function downsideDeviation(
-  series: readonly NavConfirmed[],
+  series: readonly AdjustedNav[],
   options: { target?: number; periodsPerYear?: number } = {},
 ): number | null {
   const target = options.target ?? 0
