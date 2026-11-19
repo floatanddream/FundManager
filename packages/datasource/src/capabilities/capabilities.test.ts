@@ -91,6 +91,31 @@ it('navHistory：lsjz 返回空列表（代码打错）视为失败，不当成�
   )
 })
 
+it('navHistory：主源历史超过分页上限时抛错，不把被截断的序列当全量', async () => {
+  // 20 年约 5900 条 > 200 页 × 20 条；首页就报出总量，循环必然触顶（假 fetch，无网络）
+  const truncated = lsjzPage([lsjzRow('2026-11-17', 1.1)], 5900, 1)
+  const http = httpRouting([
+    ['f10/lsjz', truncated],
+    ['pingzhongdata', 'var broken = 1;'],
+  ])
+  const error = await dataSource(http)
+    .navHistory('000001')
+    .catch((e: unknown) => e)
+  expect(error).toBeInstanceOf(DataSourceError)
+  expect(String(error)).toMatch(/lsjz.*超过 4000 条.*分页上限.*缩小日期区间/)
+})
+
+it('navHistory：备源触顶时同样抛错，宁可失败也不交半截历史', async () => {
+  const http = httpRouting([
+    ['f10/lsjz', noReferer],
+    ['pingzhongdata', 'var broken = 1;'],
+    ['FundMNHisNetList', hisnetPage([hisnetRow('2026-11-17', 1.1, 1.1, 0)], 5900)],
+  ])
+  await expect(dataSource(http).navHistory('000001')).rejects.toThrow(
+    /FundMNHisNetList.*分页上限.*缩小日期区间/,
+  )
+})
+
 it('navHistory：不同日期区间不共用缓存条目（窄区间不会截断随后的全量）', async () => {
   // 模拟 f10/lsjz：按 startDate 过滤 + 按 pageIndex 分页（每页 2 条）
   const all = ['2026-11-17', '2026-11-14', '2026-11-13', '2026-11-12'].map((d) => lsjzRow(d, 1))

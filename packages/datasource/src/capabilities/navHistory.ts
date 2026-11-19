@@ -23,8 +23,11 @@ import type { Fetched, NavHistory, NavHistoryRow } from './types.ts'
 const TTL_MS = 24 * 60 * 60 * 1000
 const PAGE_SIZE = 20
 /**
- * 翻页上限。实测每页 20 条、每年约 250 个交易日，200 页足够覆盖 10 年——
- * **只取首页会把「净值历史」静默截断成 20 天**（Review Focus #5）。
+ * 翻页上限。实测每页 20 条、每年约 250 个交易日，200 页（4000 条）约覆盖 16 年。
+ *
+ * **只取首页会把「净值历史」静默截断成 20 天**（Review Focus #5）；而历史更长的老基金
+ * 会在 200 页处触顶——触顶时**必须报错**，绝不能把缺少头部的历史当全量交出去
+ * （波动率、最大回撤、滚动收益全建立在这条序列上）。窄区间查询不受此限。
  */
 const MAX_PAGES = 200
 
@@ -51,6 +54,8 @@ export function navHistory(
         name: 'f10/lsjz',
         run: async () => {
           const rows: NavHistoryRow[] = []
+          // 只在「取到最后一页」时才可能为真；触顶 MAX_PAGES 或中途遇到空页退出时保持 false
+          let complete = false
           for (let pageIndex = 1; pageIndex <= MAX_PAGES; pageIndex++) {
             const { text } = await http.request(
               lsjzRequest({
@@ -74,7 +79,22 @@ export function navHistory(
               }
             }
             const totalPages = Math.ceil(page.totalCount / page.pageSize)
-            if (pageIndex >= totalPages || page.rows.length === 0) break
+            // 空页但还没到 totalPages：上游声明的总量没取够，同样不可当全量
+            if (pageIndex >= totalPages) {
+              complete = true
+              break
+            }
+            if (page.rows.length === 0) break
+          }
+          // 触顶退出时历史被截断（老基金约 5900 条 > 4000）。截断的序列会让波动率、
+          // 最大回撤、滚动收益全部建立在缺了头部的历史上，而返回值看不出任何异常——
+          // 故**抛错，让降级链换到能给全量的来源**（pingzhongdata 不分页），
+          // 而不是带着 `loss` 把半截数据往下交
+          if (!complete) {
+            throw new DataSourceError(
+              `f10/lsjz 净值历史超过 ${MAX_PAGES * PAGE_SIZE} 条，已达分页上限（${fundCode}）：` +
+                `继续取会静默截断历史。请缩小日期区间（startDate/endDate）后重试`,
+            )
           }
           // 空列表不是「该基金没有净值」，而是「代码不存在/打错」——接口对两者都给空数组，不得当成功
           if (rows.length === 0) {
@@ -115,6 +135,8 @@ export function navHistory(
           // 同样翻页取全——本端点分页，只取首页会把历史静默截断（Review Focus #5）。
           // 本端点同样不认日期区间，故一并按区间裁剪
           const rows: NavHistoryRow[] = []
+          // 与主源同义：只有取到 totalPages 声明的最后一页才算全量（见主源处注释）
+          let complete = false
           for (let pageIndex = 1; pageIndex <= MAX_PAGES; pageIndex++) {
             const { text } = await http.request(
               hisNetListRequest({ fundCode, pageIndex, pageSize: PAGE_SIZE }),
@@ -132,7 +154,18 @@ export function navHistory(
               }
             }
             const totalPages = Math.ceil(page.totalCount / PAGE_SIZE)
-            if (pageIndex >= totalPages || page.rows.length === 0) break
+            if (pageIndex >= totalPages) {
+              complete = true
+              break
+            }
+            if (page.rows.length === 0) break
+          }
+          // 本端点是降级链的最后一环，抛错即全链失败——但这仍好过把被截断的历史当全量交出去
+          if (!complete) {
+            throw new DataSourceError(
+              `fundmobapi/FundMNHisNetList 净值历史超过 ${MAX_PAGES * PAGE_SIZE} 条，已达分页上限（${fundCode}）：` +
+                `继续取会静默截断历史。请缩小日期区间（startDate/endDate）后重试`,
+            )
           }
           if (rows.length === 0) {
             throw new DataSourceError(
