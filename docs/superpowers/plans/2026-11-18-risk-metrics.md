@@ -121,59 +121,41 @@
 创建 `packages/core/src/risk/series.test.ts`：
 
 ```ts
-import { describe, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
 import { assertNavSeries, dailyReturns } from './series.ts'
 
 /** 用数值数组与等距日期快速搭一条确认净值序列，日期从 2024-01-01 起逐日递增 */
-function series(values: readonly number[]): ReturnType<typeof navConfirmed>[] {
-  return values.map((v, i) => navConfirmed(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
-}
+const series = (values: readonly number[]): ReturnType<typeof navConfirmed>[] =>
+  values.map((v, i) => navConfirmed(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
 
-describe('dailyReturns 日收益序列', () => {
-  it('按 value_i / value_{i-1} - 1 计算', () => {
-    // 1 → 2 → 1 → 3：收益分别为 +100%、-50%、+200%
-    expect(dailyReturns(series([1, 2, 1, 3]))).toEqual([1, -0.5, 2])
-  })
-
-  it('不足两点返回空数组', () => {
-    expect(dailyReturns([])).toEqual([])
-    expect(dailyReturns(series([1.5]))).toEqual([])
-  })
-
-  it('日期乱序抛异常（Review Focus #1）', () => {
-    const a = navConfirmed(1, '2024-01-02')
-    const b = navConfirmed(2, '2024-01-01')
-    expect(() => dailyReturns([a, b])).toThrow(TypeError)
-  })
-
-  it('日期重复抛异常（Review Focus #1）', () => {
-    const a = navConfirmed(1, '2024-01-01')
-    const b = navConfirmed(2, '2024-01-01')
-    expect(() => dailyReturns([a, b])).toThrow(TypeError)
-  })
-
-  it('净值非正抛异常', () => {
-    expect(() => dailyReturns(series([1, 0]))).toThrow(TypeError)
-    expect(() => dailyReturns(series([1, -0.5]))).toThrow(TypeError)
-  })
-
-  it('净值非有限数抛异常', () => {
-    expect(() => dailyReturns(series([1, Number.NaN]))).toThrow(TypeError)
-    expect(() => dailyReturns(series([1, Number.POSITIVE_INFINITY]))).toThrow(TypeError)
-  })
+it('按 value_i / value_{i-1} - 1 计算日收益', () => {
+  // 1 → 2 → 1 → 3：收益分别为 +100%、-50%、+200%
+  expect(dailyReturns(series([1, 2, 1, 3]))).toEqual([1, -0.5, 2])
 })
 
-describe('assertNavSeries 序列校验', () => {
-  it('合法序列不抛异常', () => {
-    expect(() => assertNavSeries(series([1, 1.5, 1.25]), 'test')).not.toThrow()
-  })
+it('不足两点返回空数组', () => {
+  expect(dailyReturns([])).toEqual([])
+  expect(dailyReturns(series([1.5]))).toEqual([])
+})
 
-  it('非法日期字符串抛异常', () => {
-    // 绕过 navConfirmed 直接构造，模拟未走构造函数的数据
-    const bad = { kind: 'nav' as const, value: 1, date: '2024/01/01' }
-    expect(() => assertNavSeries([bad])).toThrow(TypeError)
-  })
+it('日期乱序或重复抛异常（Review Focus #1）', () => {
+  // 乱序：第二点 01-01 早于第一点 01-02；重复：两点同日
+  expect(() => dailyReturns([navConfirmed(1, '2024-01-02'), navConfirmed(2, '2024-01-01')])).toThrow(TypeError)
+  expect(() => dailyReturns([navConfirmed(1, '2024-01-01'), navConfirmed(2, '2024-01-01')])).toThrow(TypeError)
+})
+
+it('净值非正或非有限数抛异常', () => {
+  expect(() => dailyReturns(series([1, 0]))).toThrow(TypeError)
+  expect(() => dailyReturns(series([1, -0.5]))).toThrow(TypeError)
+  expect(() => dailyReturns(series([1, Number.NaN]))).toThrow(TypeError)
+  expect(() => dailyReturns(series([1, Number.POSITIVE_INFINITY]))).toThrow(TypeError)
+})
+
+it('assertNavSeries 接受合法序列、拒绝非法日期', () => {
+  expect(() => assertNavSeries(series([1, 1.5, 1.25]), 'test')).not.toThrow()
+  // 绕过 navConfirmed 直接构造，模拟未走构造函数的数据
+  expect(() => assertNavSeries([{ kind: 'nav', value: 1, date: '2024/01/01' }])).toThrow(TypeError)
 })
 ```
 
@@ -237,7 +219,7 @@ export function dailyReturns(series: readonly NavConfirmed[]): number[] {
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `pnpm vitest run packages/core/src/risk/series.test.ts`
-Expected: PASS，8 个测试通过
+Expected: PASS，5 个测试通过
 
 - [ ] **Step 5: 更新包出口**
 
@@ -250,7 +232,7 @@ export { dailyReturns } from './risk/series.ts'
 - [ ] **Step 6: 跑全量测试与类型检查**
 
 Run: `pnpm test && pnpm typecheck`
-Expected: 计划 1 的 45 个 + 本任务 8 个 = 53 个测试通过，类型检查无错误
+Expected: 计划 1 的 45 个 + 本任务 5 个 = 50 个测试通过，类型检查无错误
 
 - [ ] **Step 7: 提交**
 
@@ -294,88 +276,53 @@ EOF
 创建 `packages/core/src/risk/volatility.test.ts`：
 
 ```ts
-import { describe, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
 import { annualizedVolatility, downsideDeviation } from './volatility.ts'
 
-/**
- * 手工构造的净值序列：1 → 1.5 → 1.5 → 0.75
- * 日收益恰为 [0.5, 0, -0.5]（全是二进制精确值，可手算）
- */
-const sample = [
-  navConfirmed(1, '2024-01-01'),
-  navConfirmed(1.5, '2024-01-02'),
-  navConfirmed(1.5, '2024-01-03'),
-  navConfirmed(0.75, '2024-01-04'),
-]
+/** 从 2024-01-01 起逐日递增地搭一条确认净值序列 */
+const series = (values: readonly number[]): ReturnType<typeof navConfirmed>[] =>
+  values.map((v, i) => navConfirmed(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
 
-describe('annualizedVolatility 年化波动率', () => {
-  it('日收益 [0.5, 0, -0.5] → 样本标准差 0.5，年化 0.5 × √252', () => {
-    // 均值 0；样本方差 = (0.25 + 0 + 0.25) / (3-1) = 0.25 → 标准差 0.5
-    expect(annualizedVolatility(sample)).toBeCloseTo(0.5 * Math.sqrt(252), 10)
-  })
+// 日收益恰为 [0.5, 0, -0.5]，全是二进制精确值，可手算
+const sample = series([1, 1.5, 1.5, 0.75])
+const rising = series([1, 1.5, 2.25])
 
-  it('恒定收益率序列波动率为 0', () => {
-    // 1 → 1.5 → 2.25：日收益恒为 0.5，样本方差为 0
-    const rising = [
-      navConfirmed(1, '2024-01-01'),
-      navConfirmed(1.5, '2024-01-02'),
-      navConfirmed(2.25, '2024-01-03'),
-    ]
-    expect(annualizedVolatility(rising)).toBe(0)
-  })
-
-  it('收益观测不足 2 个 → null，不返回 0（Review Focus #2）', () => {
-    expect(annualizedVolatility([])).toBeNull()
-    expect(annualizedVolatility([navConfirmed(1, '2024-01-01')])).toBeNull()
-    // 两点只有 1 个收益观测，样本标准差分母 n-1 = 0
-    expect(
-      annualizedVolatility([navConfirmed(1, '2024-01-01'), navConfirmed(2, '2024-01-02')]),
-    ).toBeNull()
-  })
-
-  it('自定义年化因子', () => {
-    // 因子 1 时不再放大，就是日标准差 0.5
-    expect(annualizedVolatility(sample, { periodsPerYear: 1 })).toBeCloseTo(0.5, 10)
-  })
-
-  it('年化因子非正抛异常', () => {
-    expect(() => annualizedVolatility(sample, { periodsPerYear: 0 })).toThrow(TypeError)
-    expect(() => annualizedVolatility(sample, { periodsPerYear: -1 })).toThrow(TypeError)
-  })
+it('年化波动率 = 日收益样本标准差 × √年化因子', () => {
+  // 均值 0；样本方差 = (0.25 + 0 + 0.25) / (3-1) = 0.25 → 标准差 0.5
+  expect(annualizedVolatility(sample)).toBeCloseTo(0.5 * Math.sqrt(252), 10)
+  // 因子 1 时不再放大，就是日标准差 0.5
+  expect(annualizedVolatility(sample, { periodsPerYear: 1 })).toBeCloseTo(0.5, 10)
 })
 
-describe('downsideDeviation 下行波动', () => {
-  it('日收益 [0.5, 0, -0.5]、target 0 → √(0.25/3 × 252) = √21', () => {
-    // 只惩罚低于目标的：min(0.5,0)²=0、min(0,0)²=0、min(-0.5,0)²=0.25
-    expect(downsideDeviation(sample)).toBeCloseTo(Math.sqrt(21), 10)
-  })
+it('恒定收益率序列波动率为 0', () => {
+  // 1 → 1.5 → 2.25：日收益恒为 0.5，样本方差为 0
+  expect(annualizedVolatility(rising)).toBe(0)
+})
 
-  it('target 0.5 时只算低于 0.5 的部分 → √105', () => {
-    // min(0,0)²=0、min(-0.5,0)²=0.25、min(-1.0,0)²=1.0 → 和 1.25，除以 3 再 ×252 = 105
-    expect(downsideDeviation(sample, { target: 0.5 })).toBeCloseTo(Math.sqrt(105), 10)
-  })
+it('收益观测不足 2 个 → null，不返回 0（Review Focus #2）', () => {
+  expect(annualizedVolatility([])).toBeNull()
+  expect(annualizedVolatility(series([1]))).toBeNull()
+  // 两点只有 1 个收益观测，样本标准差分母 n-1 = 0
+  expect(annualizedVolatility(series([1, 2]))).toBeNull()
+  expect(downsideDeviation([])).toBeNull()
+  expect(downsideDeviation(series([1]))).toBeNull()
+  expect(downsideDeviation(series([1, 1.5]))).toBeNull()
+})
 
-  it('全程收益不低于目标时下行波动为 0', () => {
-    const rising = [navConfirmed(1, '2024-01-01'), navConfirmed(1.5, '2024-01-02')]
-    // 只有 1 个收益观测 → null（观测不足）
-    expect(downsideDeviation(rising)).toBeNull()
-    const rising3 = [
-      navConfirmed(1, '2024-01-01'),
-      navConfirmed(1.5, '2024-01-02'),
-      navConfirmed(2.25, '2024-01-03'),
-    ]
-    expect(downsideDeviation(rising3)).toBe(0)
-  })
+it('下行波动只惩罚低于目标的收益', () => {
+  // target 0：min(0.5,0)²=0、min(0,0)²=0、min(-0.5,0)²=0.25 → /3 ×252 = 21
+  expect(downsideDeviation(sample)).toBeCloseTo(Math.sqrt(21), 10)
+  // target 0.5：min(0,0)²=0、min(-0.5,0)²=0.25、min(-1.0,0)²=1.0 → 和 1.25，/3 ×252 = 105
+  expect(downsideDeviation(sample, { target: 0.5 })).toBeCloseTo(Math.sqrt(105), 10)
+  // 全程收益不低于目标 → 无下行偏差
+  expect(downsideDeviation(rising)).toBe(0)
+})
 
-  it('收益观测不足 2 个 → null（Review Focus #2）', () => {
-    expect(downsideDeviation([])).toBeNull()
-    expect(downsideDeviation([navConfirmed(1, '2024-01-01')])).toBeNull()
-  })
-
-  it('target 非有限数抛异常', () => {
-    expect(() => downsideDeviation(sample, { target: Number.NaN })).toThrow(TypeError)
-  })
+it('非法选项参数抛异常', () => {
+  expect(() => annualizedVolatility(sample, { periodsPerYear: 0 })).toThrow(TypeError)
+  expect(() => annualizedVolatility(sample, { periodsPerYear: -1 })).toThrow(TypeError)
+  expect(() => downsideDeviation(sample, { target: Number.NaN })).toThrow(TypeError)
 })
 ```
 
@@ -455,7 +402,7 @@ export function downsideDeviation(
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `pnpm vitest run packages/core/src/risk/volatility.test.ts`
-Expected: PASS，10 个测试通过
+Expected: PASS，5 个测试通过
 
 - [ ] **Step 5: 更新包出口**
 
@@ -468,7 +415,7 @@ export { annualizedVolatility, downsideDeviation } from './risk/volatility.ts'
 - [ ] **Step 6: 跑全量测试与类型检查**
 
 Run: `pnpm test && pnpm typecheck`
-Expected: 63 个测试通过（53 + 10），类型检查无错误
+Expected: 55 个测试通过（50 + 5），类型检查无错误
 
 - [ ] **Step 7: 提交**
 
@@ -514,71 +461,46 @@ EOF
 创建 `packages/core/src/risk/drawdown.test.ts`：
 
 ```ts
-import { describe, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
 import { currentDrawdown, drawdownRecoveryDays, maxDrawdown } from './drawdown.ts'
 
 /** 从 2024-01-01 起逐日递增地搭一条序列 */
-function series(values: readonly number[]): ReturnType<typeof navConfirmed>[] {
-  return values.map((v, i) => navConfirmed(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
-}
+const series = (values: readonly number[]): ReturnType<typeof navConfirmed>[] =>
+  values.map((v, i) => navConfirmed(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
 
-describe('maxDrawdown 最大回撤', () => {
-  it('[1, 2, 1, 3] 的最大回撤是 50%', () => {
-    // 峰值 2 → 谷底 1，跌幅 (2-1)/2 = 0.5
-    expect(maxDrawdown(series([1, 2, 1, 3]))).toBe(0.5)
-  })
-
-  it('单调上升无回撤 → 0', () => {
-    expect(maxDrawdown(series([1, 2, 3]))).toBe(0)
-  })
-
-  it('不足两点 → null', () => {
-    expect(maxDrawdown([])).toBeNull()
-    expect(maxDrawdown(series([1]))).toBeNull()
-  })
-
-  it('日期乱序抛异常（Review Focus #1）', () => {
-    const a = navConfirmed(1, '2024-01-02')
-    const b = navConfirmed(2, '2024-01-01')
-    expect(() => maxDrawdown([a, b])).toThrow(TypeError)
-  })
+it('最大回撤取峰值到谷底的最大跌幅', () => {
+  // [1, 2, 1, 3]：峰值 2 → 谷底 1，跌幅 (2-1)/2 = 0.5
+  expect(maxDrawdown(series([1, 2, 1, 3]))).toBe(0.5)
+  expect(maxDrawdown(series([1, 2, 3]))).toBe(0) // 单调上升无回撤
 })
 
-describe('drawdownRecoveryDays 回撤修复期', () => {
-  it('[1, 2, 1, 1, 1, 2] 的修复期是 3 天', () => {
-    // 峰值在 01-02（值 2），谷底在 01-03（值 1），01-06 回到 2 → daysBetween('01-03','01-06') = 3
-    expect(drawdownRecoveryDays(series([1, 2, 1, 1, 1, 2]))).toBe(3)
-  })
-
-  it('结束时仍未修复 → null（Review Focus #4）', () => {
-    // 峰值 2 在 01-02，谷底 1 在 01-03，此后一直没回到 2
-    expect(drawdownRecoveryDays(series([1, 2, 1, 1]))).toBeNull()
-  })
-
-  it('从未回撤 → null', () => {
-    expect(drawdownRecoveryDays(series([1, 2, 3]))).toBeNull()
-  })
-
-  it('不足两点 → null', () => {
-    expect(drawdownRecoveryDays(series([1]))).toBeNull()
-  })
+it('序列不足两点 → null', () => {
+  expect(maxDrawdown([])).toBeNull()
+  expect(maxDrawdown(series([1]))).toBeNull()
+  expect(drawdownRecoveryDays(series([1]))).toBeNull()
+  expect(currentDrawdown([])).toBeNull()
+  expect(currentDrawdown(series([1]))).toBeNull()
 })
 
-describe('currentDrawdown 当前回撤', () => {
-  it('[1, 2, 1, 1.5] 当前回撤 25%', () => {
-    // 历史峰值 2，末点 1.5 → (2-1.5)/2 = 0.25
-    expect(currentDrawdown(series([1, 2, 1, 1.5]))).toBe(0.25)
-  })
+it('日期乱序抛异常（Review Focus #1）', () => {
+  expect(() => maxDrawdown([navConfirmed(1, '2024-01-02'), navConfirmed(2, '2024-01-01')])).toThrow(TypeError)
+})
 
-  it('末点即历史峰值 → 0', () => {
-    expect(currentDrawdown(series([1, 2, 1, 3]))).toBe(0)
-  })
+it('[1, 2, 1, 1, 1, 2] 的回撤修复期是 3 天', () => {
+  // 峰值 01-02（值 2）→ 谷底 01-03（值 1）→ 01-06 回到 2，daysBetween 为 3
+  expect(drawdownRecoveryDays(series([1, 2, 1, 1, 1, 2]))).toBe(3)
+})
 
-  it('不足两点 → null', () => {
-    expect(currentDrawdown([])).toBeNull()
-    expect(currentDrawdown(series([1]))).toBeNull()
-  })
+it('修复期无解时返回 null（从未回撤或结束时仍未修复）', () => {
+  expect(drawdownRecoveryDays(series([1, 2, 3]))).toBeNull() // 从未回撤
+  // 峰值 2 在 01-02，谷底 1 在 01-03，此后一直没回到 2（Review Focus #4）
+  expect(drawdownRecoveryDays(series([1, 2, 1, 1]))).toBeNull()
+})
+
+it('当前回撤 = (历史峰值 − 末点) / 峰值', () => {
+  expect(currentDrawdown(series([1, 2, 1, 1.5]))).toBe(0.25) // 峰值 2，末点 1.5
+  expect(currentDrawdown(series([1, 2, 1, 3]))).toBe(0) // 末点即历史峰值
 })
 ```
 
@@ -682,7 +604,7 @@ export function currentDrawdown(series: readonly NavConfirmed[]): number | null 
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `pnpm vitest run packages/core/src/risk/drawdown.test.ts`
-Expected: PASS，11 个测试通过
+Expected: PASS，6 个测试通过
 
 - [ ] **Step 5: 更新包出口**
 
@@ -695,7 +617,7 @@ export { currentDrawdown, drawdownRecoveryDays, maxDrawdown } from './risk/drawd
 - [ ] **Step 6: 跑全量测试与类型检查**
 
 Run: `pnpm test && pnpm typecheck`
-Expected: 74 个测试通过（63 + 11），类型检查无错误
+Expected: 61 个测试通过（55 + 6），类型检查无错误
 
 - [ ] **Step 7: 提交**
 
@@ -740,66 +662,57 @@ EOF
 创建 `packages/core/src/risk/rolling.test.ts`：
 
 ```ts
-import { describe, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
 import { rollingReturnDistribution } from './rolling.ts'
 
 /** 从 2024-01-01 起逐日递增地搭一条序列 */
-function series(values: readonly number[]): ReturnType<typeof navConfirmed>[] {
-  return values.map((v, i) => navConfirmed(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
-}
+const series = (values: readonly number[]): ReturnType<typeof navConfirmed>[] =>
+  values.map((v, i) => navConfirmed(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
 
-describe('rollingReturnDistribution 滚动持有收益分布', () => {
-  it('[1, 2, 1, 1, 1, 2] 持有 2 天：窗口与亏损概率', () => {
-    // 起点 01-01..01-04 各有一个 2 天后（逐日）的窗口：收益 0, -0.5, 0, 1
-    // 起点 01-05、01-06 之后没有 ≥ 2 天的观测，跳过 → 共 4 个窗口
-    const stats = rollingReturnDistribution(series([1, 2, 1, 1, 1, 2]), 2)
-    expect(stats).not.toBeNull()
-    expect(stats!.holdingDays).toBe(2)
-    expect(stats!.windows).toBe(4)
-    expect(stats!.lossProbability).toBeCloseTo(0.25, 10) // 仅 -0.5 一个亏损
-  })
+it('[1, 2, 1, 1, 1, 2] 持有 2 天的窗口、亏损概率与分位数', () => {
+  // 起点 01-01..01-04 各有一个 2 天后的窗口：收益 0, -0.5, 0, 1；01-05、01-06 之后无 ≥2 天观测 → 4 个窗口
+  const stats = rollingReturnDistribution(series([1, 2, 1, 1, 1, 2]), 2)
+  expect(stats).not.toBeNull()
+  expect(stats!.holdingDays).toBe(2)
+  expect(stats!.windows).toBe(4)
+  expect(stats!.lossProbability).toBeCloseTo(0.25, 10) // 仅 -0.5 一个亏损
+  expect(stats!.meanReturn).toBeCloseTo(0.125, 10) // (0 - 0.5 + 0 + 1) / 4
+  expect(stats!.medianReturn).toBeCloseTo(0, 10)
+  expect(stats!.minReturn).toBeCloseTo(-0.5, 10)
+  expect(stats!.maxReturn).toBeCloseTo(1, 10)
+  // 升序 [-0.5, 0, 0, 1]，type-7 插值 h=(4-1)*p
+  expect(stats!.p05).toBeCloseTo(-0.425, 10) // -0.5 + 0.15 × 0.5
+  expect(stats!.p25).toBeCloseTo(-0.125, 10) // -0.5 + 0.75 × 0.5
+  expect(stats!.p75).toBeCloseTo(0.25, 10) // 0 + 0.25 × 1
+  expect(stats!.p95).toBeCloseTo(0.85, 10) // 0 + 0.85 × 1
+})
 
-  it('分布统计量与分位数（升序 [-0.5, 0, 0, 1]）', () => {
-    const stats = rollingReturnDistribution(series([1, 2, 1, 1, 1, 2]), 2)!
-    expect(stats.meanReturn).toBeCloseTo(0.125, 10) // (0 - 0.5 + 0 + 1) / 4
-    expect(stats.medianReturn).toBeCloseTo(0, 10)
-    expect(stats.minReturn).toBeCloseTo(-0.5, 10)
-    expect(stats.maxReturn).toBeCloseTo(1, 10)
-    // type-7 线性插值：h=(4-1)*p
-    expect(stats.p05).toBeCloseTo(-0.425, 10) // -0.5 + 0.15 × 0.5
-    expect(stats.p25).toBeCloseTo(-0.125, 10) // -0.5 + 0.75 × 0.5
-    expect(stats.p75).toBeCloseTo(0.25, 10) // 0 + 0.25 × 1
-    expect(stats.p95).toBeCloseTo(0.85, 10) // 0 + 0.85 × 1
-  })
+it('跨缺失交易日按日期取首个足够远的观测（Review Focus #5）', () => {
+  // 日期 01-01、01-05、01-06（缺 01-02..01-04）。持有 2 天：
+  // 起点 01-01 的首个「≥ 2 天后」观测是 01-05（距 4 天）→ 收益 2/1-1 = +100%
+  // 起点 01-05 只差 01-06（1 天），不足 2 天 → 无窗口
+  // 若误按索引取第 2 个点，起点 01-01 会落在 01-06（值 4）→ 收益 +300%，与预期不符
+  const dates = ['2024-01-01', '2024-01-05', '2024-01-06']
+  const s = [1, 2, 4].map((v, i) => navConfirmed(v, dates[i]!))
+  const stats = rollingReturnDistribution(s, 2)!
+  expect(stats.windows).toBe(1)
+  expect(stats.maxReturn).toBeCloseTo(1, 10) // 起点 01-01 → 01-05
+})
 
-  it('跨缺失交易日按日期取首个足够远的观测（Review Focus #5）', () => {
-    // 日期 01-01、01-05、01-06（缺 01-02..01-04）。持有 2 天：
-    // 起点 01-01 的首个「≥ 2 天后」观测是 01-05（距 4 天）→ 收益 2/1-1 = +100%
-    // 起点 01-05 只差 01-06（1 天），不足 2 天 → 无窗口
-    // 若误按索引取第 2 个点，起点 01-01 会落在 01-06（值 4）→ 收益 +300%，与预期不符
-    const dates = ['2024-01-01', '2024-01-05', '2024-01-06']
-    const values = [1, 2, 4]
-    const s = values.map((v, i) => navConfirmed(v, dates[i]!))
-    const stats = rollingReturnDistribution(s, 2)!
-    expect(stats.windows).toBe(1)
-    expect(stats.maxReturn).toBeCloseTo(1, 10) // 起点 01-01 → 01-05
-  })
+it('无可用窗口 → null', () => {
+  expect(rollingReturnDistribution(series([1, 2, 3]), 30)).toBeNull()
+})
 
-  it('无可用窗口 → null', () => {
-    expect(rollingReturnDistribution(series([1, 2, 3]), 30)).toBeNull()
-  })
+it('holdingDays 非正整数抛异常', () => {
+  expect(() => rollingReturnDistribution(series([1, 2, 3]), 0)).toThrow(TypeError)
+  expect(() => rollingReturnDistribution(series([1, 2, 3]), -5)).toThrow(TypeError)
+  expect(() => rollingReturnDistribution(series([1, 2, 3]), 1.5)).toThrow(TypeError)
+})
 
-  it('holdingDays 非正整数抛异常', () => {
-    expect(() => rollingReturnDistribution(series([1, 2, 3]), 0)).toThrow(TypeError)
-    expect(() => rollingReturnDistribution(series([1, 2, 3]), -5)).toThrow(TypeError)
-    expect(() => rollingReturnDistribution(series([1, 2, 3]), 1.5)).toThrow(TypeError)
-  })
-
-  it('日期乱序抛异常（Review Focus #1）', () => {
-    const s = [navConfirmed(1, '2024-01-02'), navConfirmed(2, '2024-01-01')]
-    expect(() => rollingReturnDistribution(s, 1)).toThrow(TypeError)
-  })
+it('日期乱序抛异常（Review Focus #1）', () => {
+  const s = [navConfirmed(1, '2024-01-02'), navConfirmed(2, '2024-01-01')]
+  expect(() => rollingReturnDistribution(s, 1)).toThrow(TypeError)
 })
 ```
 
@@ -900,7 +813,7 @@ export function rollingReturnDistribution(
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `pnpm vitest run packages/core/src/risk/rolling.test.ts`
-Expected: PASS，6 个测试通过
+Expected: PASS，5 个测试通过
 
 - [ ] **Step 5: 更新包出口**
 
@@ -914,7 +827,7 @@ export type { RollingReturnStats } from './risk/rolling.ts'
 - [ ] **Step 6: 跑全量测试与类型检查**
 
 Run: `pnpm test && pnpm typecheck`
-Expected: 80 个测试通过（74 + 6），类型检查无错误
+Expected: 66 个测试通过（61 + 5），类型检查无错误
 
 - [ ] **Step 7: 提交**
 
@@ -962,14 +875,13 @@ EOF
 创建 `packages/core/src/risk/correlation.test.ts`：
 
 ```ts
-import { describe, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
 import { correlationMatrix } from './correlation.ts'
 
 /** 按给定日期与数值搭一条序列 */
-function series(dates: readonly string[], values: readonly number[]): ReturnType<typeof navConfirmed>[] {
-  return values.map((v, i) => navConfirmed(v, dates[i]!))
-}
+const series = (dates: readonly string[], values: readonly number[]): ReturnType<typeof navConfirmed>[] =>
+  values.map((v, i) => navConfirmed(v, dates[i]!))
 
 const D = ['2024-01-01', '2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05']
 
@@ -978,64 +890,54 @@ const A = series(D, [1, 1.5, 0.75, 1.125, 0.5625])
 // B 的日收益恰为 A 的相反数：-50%, +50%, -50%, +50%
 const B = series(D, [1, 0.5, 0.75, 0.375, 0.5625])
 
-describe('correlationMatrix 相关性矩阵', () => {
-  it('完全相同的两条序列相关系数为 1', () => {
-    const result = correlationMatrix([A, series(D, A.map((p) => p.value))])!
-    expect(result).not.toBeNull()
-    expect(result.matrix[0]![0]).toBe(1)
-    expect(result.matrix[1]![1]).toBe(1)
-    expect(result.matrix[0]![1]).toBeCloseTo(1, 10)
-    expect(result.observations).toBe(4)
-  })
+it('相同序列相关系数为 1，相反序列为 -1', () => {
+  const same = correlationMatrix([A, series(D, A.map((p) => p.value))])!
+  expect(same).not.toBeNull()
+  expect(same.matrix[0]![0]).toBe(1)
+  expect(same.matrix[1]![1]).toBe(1)
+  expect(same.matrix[0]![1]).toBeCloseTo(1, 10)
+  expect(same.observations).toBe(4)
 
-  it('收益完全相反的两条序列相关系数为 -1', () => {
-    const result = correlationMatrix([A, B])!
-    expect(result.matrix[0]![1]).toBeCloseTo(-1, 10)
-    expect(result.matrix[1]![0]).toBeCloseTo(-1, 10)
-  })
+  const opposite = correlationMatrix([A, B])!
+  expect(opposite.matrix[0]![1]).toBeCloseTo(-1, 10)
+  expect(opposite.matrix[1]![0]).toBeCloseTo(-1, 10)
+})
 
-  it('只取共同日期，非重叠部分被丢弃', () => {
-    // C 的日期整体后移一天：01-02..01-06。与 A 的共同日期是 01-02..01-05（4 天）
-    const C = series(
-      ['2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05', '2024-01-06'],
-      [1, 1.5, 0.75, 1.125, 0.5625],
-    )
-    const result = correlationMatrix([A, C])!
-    // 共同 4 个日期 → 3 个对齐收益；在重叠段里 C 的收益恰是 A 的相反数，相关系数为 -1
-    expect(result.observations).toBe(3)
-    expect(result.matrix[0]!.length).toBe(2) // 2×2 矩阵
-    expect(result.matrix[0]![1]).toBeCloseTo(-1, 10)
-  })
+it('只取共同日期，非重叠部分被丢弃', () => {
+  // C 的日期整体后移一天：01-02..01-06。与 A 的共同日期是 01-02..01-05（4 天）
+  const C = series(
+    ['2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05', '2024-01-06'],
+    [1, 1.5, 0.75, 1.125, 0.5625],
+  )
+  const result = correlationMatrix([A, C])!
+  // 共同 4 个日期 → 3 个对齐收益；在重叠段里 C 的收益恰是 A 的相反数，相关系数为 -1
+  expect(result.observations).toBe(3)
+  expect(result.matrix[0]!.length).toBe(2) // 2×2 矩阵
+  expect(result.matrix[0]![1]).toBeCloseTo(-1, 10)
+})
 
-  it('window 限制只取最近若干个观测', () => {
-    const result = correlationMatrix([A, B], { window: 2 })!
-    expect(result.observations).toBe(2) // 只保留最近 2 个收益观测
-  })
+it('window 限制只取最近若干个观测', () => {
+  const result = correlationMatrix([A, B], { window: 2 })!
+  expect(result.observations).toBe(2) // 只保留最近 2 个收益观测
+})
 
-  it('恒定序列方差为 0 → null，不返回 NaN（Review Focus #3）', () => {
-    const flat = series(D, [1, 1, 1, 1, 1])
-    expect(correlationMatrix([A, flat])).toBeNull()
-  })
+it('无法计算时返回 null（序列不足、共同日期不足、零方差）', () => {
+  const flat = series(D, [1, 1, 1, 1, 1])
+  expect(correlationMatrix([A, flat])).toBeNull() // 零方差，不返回 NaN（Review Focus #3）
+  expect(correlationMatrix([A])).toBeNull()
+  expect(correlationMatrix([])).toBeNull()
+  // 共同日期只有 01-01、02-01 两点 → 不足 2 个收益观测
+  expect(correlationMatrix([A, series(['2024-01-01', '2024-02-01'], [1, 2])])).toBeNull()
+})
 
-  it('少于两条序列 → null', () => {
-    expect(correlationMatrix([A])).toBeNull()
-    expect(correlationMatrix([])).toBeNull()
-  })
+it('序列日期乱序抛异常（Review Focus #1）', () => {
+  const bad = [navConfirmed(1, '2024-01-02'), navConfirmed(2, '2024-01-01')]
+  expect(() => correlationMatrix([A, bad])).toThrow(TypeError)
+})
 
-  it('共同日期不足 2 个收益观测 → null', () => {
-    const only = series(['2024-01-01', '2024-02-01'], [1, 2])
-    expect(correlationMatrix([A, only])).toBeNull()
-  })
-
-  it('序列日期乱序抛异常（Review Focus #1）', () => {
-    const bad = [navConfirmed(1, '2024-01-02'), navConfirmed(2, '2024-01-01')]
-    expect(() => correlationMatrix([A, bad])).toThrow(TypeError)
-  })
-
-  it('window 非法抛异常', () => {
-    expect(() => correlationMatrix([A, B], { window: 1 })).toThrow(TypeError)
-    expect(() => correlationMatrix([A, B], { window: 2.5 })).toThrow(TypeError)
-  })
+it('window 非法抛异常', () => {
+  expect(() => correlationMatrix([A, B], { window: 1 })).toThrow(TypeError)
+  expect(() => correlationMatrix([A, B], { window: 2.5 })).toThrow(TypeError)
 })
 ```
 
@@ -1157,7 +1059,7 @@ export function correlationMatrix(
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `pnpm vitest run packages/core/src/risk/correlation.test.ts`
-Expected: PASS，9 个测试通过
+Expected: PASS，6 个测试通过
 
 - [ ] **Step 5: 更新包出口**
 
@@ -1171,7 +1073,7 @@ export type { CorrelationResult } from './risk/correlation.ts'
 - [ ] **Step 6: 跑全量测试、类型检查与格式化**
 
 Run: `pnpm test && pnpm typecheck && pnpm format`
-Expected: 89 个测试通过（80 + 9），类型检查无错误，格式化无改动或仅有格式化改动
+Expected: 72 个测试通过（66 + 6），类型检查无错误，格式化无改动或仅有格式化改动
 
 - [ ] **Step 7: 提交**
 
