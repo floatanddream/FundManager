@@ -11,3 +11,5 @@ export type {
   TransactionKind,
   TransactionStatus,
 } from './ledger/types.ts'
+export { reconcile } from './ledger/reconcile.ts'
+export type { ReconcileInput, ReconcileResult } from './ledger/reconcile.ts'
