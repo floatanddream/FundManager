@@ -1,4 +1,4 @@
-import { navConfirmed } from '@fundmanager/shared'
+import { daysBetween, navConfirmed } from '@fundmanager/shared'
 import type { NavConfirmed } from '@fundmanager/shared'
 import { assertNavSeries, dailyReturns } from './series.ts'
 
@@ -11,6 +11,12 @@ export type CorrelationResult = {
   readonly matrix: readonly (readonly number[])[]
   /** 参与计算的共同交易日收益观测数 */
   readonly observations: number
+  /**
+   * 参与计算的各段收益中，相邻共同日期相隔的最大日历天数。
+   * 1 表示全部为相邻交易日；明显大于 1 说明窗口内发生过停牌/缺失，
+   * 该段跨多日的累计收益被当成了一日收益（见 alignReturns 的说明）。
+   */
+  readonly maxGapDays: number
 }
 
 /**
@@ -29,7 +35,14 @@ function intersectDates(seriesList: readonly (readonly NavConfirmed[])[]): strin
   return result.sort()
 }
 
-/** 把一条序列按共同日期取子序列后再求日收益，得到与其他序列对齐的收益数组。 */
+/**
+ * 把一条序列按共同日期取子序列后再求日收益，得到与其他序列对齐的收益数组。
+ *
+ * **已知偏差**：对齐后的「一日收益」是相邻**共同日期**之间的区间收益。若某只基金
+ * 在中途停牌或缺失，这段跨多日的累计收益会被视作一天收益——单点方差被抬高，
+ * 与其它序列的收益错位，相关性因此轻微失真。本函数不做分段剔除（最简优先），
+ * 失真程度由 `CorrelationResult.maxGapDays` 暴露给展示层标注。
+ */
 function alignReturns(series: readonly NavConfirmed[], commonDates: readonly string[]): number[] {
   const byDate = new Map(series.map((p) => [p.date, p.value]))
   return dailyReturns(commonDates.map((date) => navConfirmed(byDate.get(date)!, date)))
@@ -62,7 +75,10 @@ function pearson(a: readonly number[], b: readonly number[]): number {
  * 先在共同日期上对齐，再取最近 window 个收益观测。某序列方差为 0
  * （净值恒定）时相关系数无定义，整体返回 null，不返回 NaN。
  *
- * @param seriesList 各基金的确认净值序列，顺序即矩阵行列顺序
+ * **输入必须是复权后**（分红再投）的确认净值序列，见 `toAdjustedSeries`；
+ * 未复权净值在分红日会压低相关性。
+ *
+ * @param seriesList 各基金复权后的确认净值序列，顺序即矩阵行列顺序
  * @param options.window 使用的最近收益观测数，默认 250
  * @returns 相关性矩阵；无法计算时返回 null
  * @throws {TypeError} window 不是不小于 2 的整数，或任一序列非法（透传 assertNavSeries）
@@ -88,6 +104,12 @@ export function correlationMatrix(
   const observations = aligned[0]!.length
   if (observations < 2) return null
 
+  // 收益 i 对应 commonDates[i]→commonDates[i+1]，窗口内跨停牌段的最大日历跨度
+  let maxGapDays = 1
+  for (let i = start; i < commonDates.length - 1; i++) {
+    maxGapDays = Math.max(maxGapDays, daysBetween(commonDates[i]!, commonDates[i + 1]!))
+  }
+
   const matrix: number[][] = []
   for (let i = 0; i < aligned.length; i++) {
     const row: number[] = []
@@ -102,5 +124,5 @@ export function correlationMatrix(
       if (!Number.isFinite(value)) return null
     }
   }
-  return { matrix, observations }
+  return { matrix, observations, maxGapDays }
 }

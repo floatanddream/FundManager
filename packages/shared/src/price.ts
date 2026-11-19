@@ -1,8 +1,16 @@
 import { assertDate } from './date.ts'
 
-/** T-1 确认净值：基金公司收盘后公布。收益与风险计算**只能**用这个。 */
+/**
+ * T-1 确认净值：基金公司收盘后公布。收益与风险计算**只能**用这个。
+ *
+ * **`value` 的口径**：进入收益/风险计算时必须是**复权净值（分红再投）**，
+ * 由 `@fundmanager/core` 的 `toAdjustedSeries` 从净值历史换算得到。
+ * 数据源给的 `nav` 是**未复权单位净值**（`DWJZ`），分红除息日会机械下跌，
+ * 直接映射进本类型再算风险会在分红日造出假亏损与假回撤。
+ */
 export type NavConfirmed = {
   readonly kind: 'nav'
+  /** 复权净值（分红再投口径）；原始单位净值须先经 toAdjustedSeries 换算 */
   readonly value: number
   /** YYYY-MM-DD */
   readonly date: string

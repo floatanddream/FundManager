@@ -14,7 +14,10 @@ function assertPeriodsPerYear(periodsPerYear: number): void {
 /**
  * 年化波动率：日收益的样本标准差（÷ n−1）× √periodsPerYear。
  *
- * @param series 确认净值序列，须按日期严格升序
+ * **输入必须是复权后**（分红再投）的确认净值序列，见 `toAdjustedSeries`；
+ * 未复权净值在分红除息日会记出一笔不存在的亏损，抬高波动率。
+ *
+ * @param series 复权后的确认净值序列，须按日期严格升序
  * @param options.periodsPerYear 年化因子，默认 252（A 股年均交易日）
  * @returns 非负的年化波动率；收益观测不足 2 个（净值点不足 3 个）时返回 `null`
  * @throws {TypeError} 序列非法（透传 assertNavSeries），或 periodsPerYear 非正
@@ -37,7 +40,9 @@ export function annualizedVolatility(
  * 年化下行波动：只计低于目标收益的偏差，分母为全部观测数 n（标准 Sortino 口径），
  * 再按 √periodsPerYear 年化。
  *
- * @param series 确认净值序列，须按日期严格升序
+ * **输入必须是复权后**（分红再投）的确认净值序列，见 `toAdjustedSeries`。
+ *
+ * @param series 复权后的确认净值序列，须按日期严格升序
  * @param options.target 目标收益率（MAR），默认 0
  * @param options.periodsPerYear 年化因子，默认 252
  * @returns 非负的年化下行波动；收益观测不足 2 个时返回 `null`。收益全程不低于目标时为 0

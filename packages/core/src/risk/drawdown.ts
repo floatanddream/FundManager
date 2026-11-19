@@ -1,11 +1,14 @@
-import { daysBetween } from '@fundmanager/shared'
+import { approxEqual, daysBetween } from '@fundmanager/shared'
 import type { NavConfirmed } from '@fundmanager/shared'
 import { assertNavSeries } from './series.ts'
 
 /**
  * 最大回撤：历史峰值到后续谷底的最大跌幅。返回非负幅度（0.5 表示跌 50%）。
  *
- * @param series 确认净值序列，须按日期严格升序
+ * **输入必须是复权后**（分红再投）的确认净值序列，见 `toAdjustedSeries`；
+ * 未复权的单位净值在分红除息日会吃掉分红，凭空造出一次回撤。
+ *
+ * @param series 复权后的确认净值序列，须按日期严格升序
  * @returns 最大回撤；不足 2 点返回 null
  * @throws {TypeError} 序列非法（透传 assertNavSeries）
  */
@@ -25,7 +28,10 @@ export function maxDrawdown(series: readonly NavConfirmed[]): number | null {
 /**
  * 最大回撤的修复期：从回撤谷底回到前一个峰值所花的日历天数。
  *
- * @param series 确认净值序列，须按日期严格升序
+ * **输入必须是复权后**（分红再投）的确认净值序列，见 `toAdjustedSeries`；
+ * 未复权净值在分红日造成的假回撤会报出一个不存在的修复期。
+ *
+ * @param series 复权后的确认净值序列，须按日期严格升序
  * @returns 修复所需天数；从未回撤或结束时仍未修复均返回 null
  * @throws {TypeError} 序列非法（透传 assertNavSeries）
  */
@@ -57,9 +63,10 @@ export function drawdownRecoveryDays(series: readonly NavConfirmed[]): number | 
   if (worst <= 0) return null
 
   const peakValue = series[troughPeakIndex]!.value
-  // 从谷底之后找第一个回到峰值水平的点
+  // 从谷底之后找第一个回到峰值水平的点。用容差：净值 2 − 1e-15 在 float64 里
+  // 已是「收复差一个 ulp」，精确比较会把它谎报成「未修复」
   for (let i = troughIndex + 1; i < series.length; i++) {
-    if (series[i]!.value >= peakValue) {
+    if (series[i]!.value >= peakValue || approxEqual(series[i]!.value, peakValue)) {
       return daysBetween(series[troughIndex]!.date, series[i]!.date)
     }
   }
@@ -71,8 +78,9 @@ export function drawdownRecoveryDays(series: readonly NavConfirmed[]): number | 
  * 当前回撤：序列末点相对历史峰值的跌幅。返回非负幅度。
  *
  * 当前日期由调用方以序列末点给出——core 不读时间。
+ * **输入必须是复权后**（分红再投）的确认净值序列，见 `toAdjustedSeries`。
  *
- * @param series 确认净值序列，须按日期严格升序
+ * @param series 复权后的确认净值序列，须按日期严格升序
  * @returns 当前回撤；不足 2 点返回 null
  * @throws {TypeError} 序列非法（透传 assertNavSeries）
  */

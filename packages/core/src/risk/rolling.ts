@@ -41,7 +41,10 @@ function quantile(sorted: readonly number[], p: number): number {
  * 滚动持有收益分布：历史上任意时点买入、持有 holdingDays 日历天后卖出，
  * 这批收益的分布统计——回答「亏损概率多少」。
  *
- * @param series 确认净值序列，须按日期严格升序
+ * **输入必须是复权后**（分红再投）的确认净值序列，见 `toAdjustedSeries`；
+ * 未复权净值会让跨分红日的窗口收益凭空变成亏损。
+ *
+ * @param series 复权后的确认净值序列，须按日期严格升序
  * @param holdingDays 持有天数（日历天），必须是正整数
  * @returns 分布统计量；没有任何可用窗口时返回 null
  * @throws {TypeError} holdingDays 非正整数，或序列非法（透传 assertNavSeries）

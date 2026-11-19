@@ -36,6 +36,11 @@ it('修复期无解时返回 null（从未回撤或结束时仍未修复）', ()
   expect(drawdownRecoveryDays(series([1, 2, 1, 1]))).toBeNull()
 })
 
+it('净值收复差一个 ulp 也算已修复', () => {
+  // 2 − 1e-15 在 float64 里小于 2，精确比较会误报「仍在亏」（01-03 谷底，01-04 收复）
+  expect(drawdownRecoveryDays(series([1, 2, 1, 2 - 1e-15]))).toBe(1)
+})
+
 it('当前回撤 = (历史峰值 − 末点) / 峰值', () => {
   expect(currentDrawdown(series([1, 2, 1, 1.5]))).toBe(0.25)
   expect(currentDrawdown(series([1, 2, 1, 3]))).toBe(0)

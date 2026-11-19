@@ -26,6 +26,7 @@ it('相同序列相关系数为 1，相反序列为 -1', () => {
   expect(same!.matrix[1]![1]).toBe(1)
   expect(same!.matrix[0]![1]).toBeCloseTo(1, 10)
   expect(same!.observations).toBe(4)
+  expect(same!.maxGapDays).toBe(1)
 
   const opposite = correlationMatrix([A, B])!
   expect(opposite.matrix[0]![1]).toBeCloseTo(-1, 10)
@@ -42,6 +43,16 @@ it('只取共同日期，非重叠部分被丢弃', () => {
   expect(result.observations).toBe(3)
   expect(result.matrix).toHaveLength(2)
   expect(result.matrix[0]![1]).toBeCloseTo(-1, 10)
+})
+
+it('maxGapDays 暴露跨停牌的多日区间收益', () => {
+  // 01-01 → 01-08 中间无共同日期：这段 7 天累计收益被当成一日收益
+  const gapped = series(['2024-01-01', '2024-01-08', '2024-01-09'], [1, 1.5, 0.75])
+  const result = correlationMatrix([
+    gapped,
+    series(['2024-01-01', '2024-01-08', '2024-01-09'], [1, 0.5, 0.75]),
+  ])!
+  expect(result.maxGapDays).toBe(7)
 })
 
 it('window 限制只取最近若干个观测', () => {
