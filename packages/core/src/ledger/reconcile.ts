@@ -18,8 +18,11 @@ export type ReconcileResult = {
   readonly claimedShares: number
   /** `derivedShares - claimedShares`；为正说明流水推出来的份额多于平台 */
   readonly difference: number
-  /** 即输入中的 `lastMatchedAt`；对不上时由此提示「最早从哪天起可能有问题」 */
-  readonly sinceDate: string | null
+  /**
+   * 上次对得上的日期（即输入的 `lastMatchedAt`），从未对过为 `null`。
+   * **不是**「最早从哪天开始对不上」——那个算不出来，见下方 `@remarks`
+   */
+  readonly lastMatchedOn: string | null
 }
 
 /**
@@ -32,9 +35,13 @@ export type ReconcileResult = {
  * 流水时，那笔既不在上期确认份额里、又落在本期窗口外，会被静默漏掉（设计 §九）。
  * 账本流水量很小，全量重推是毫秒级。
  *
+ * **不推算「最早从哪天开始对不上」**（设计 §九 2026-11-19 修订）：那是推算而非事实，
+ * 同日多笔顺序不保证、补录流水没有可观测边界，算出来仍可能指错。只转发「上次对得上
+ * 的日期」，字段因此叫 `lastMatchedOn`。
+ *
  * @param input 流水、基金、截止日、声称份额、上次对得上的日期
  * @returns 是否一致、推导份额、差异与上次对得上的日期
- * @throws {TypeError} 日期或基金代码非法（由 `derivePosition` 抛出）
+ * @throws {TypeError} 日期非法；流水缺该 `kind` 的必填字段（均由 `derivePosition` 抛出）
  */
 export function reconcile(input: ReconcileInput): ReconcileResult {
   const { transactions, fundCode, asOf, claimedShares, lastMatchedAt } = input
@@ -52,6 +59,6 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
     derivedShares,
     claimedShares,
     difference: derivedShares - claimedShares,
-    sinceDate: lastMatchedAt,
+    lastMatchedOn: lastMatchedAt,
   }
 }

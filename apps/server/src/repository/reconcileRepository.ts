@@ -12,7 +12,7 @@ export const createReconcileRepository = (db: AppDatabase) => ({
    * 计划的签名 `add(ledgerId, fundCode, result)` 漏了它，但表里 `asOf` 是 NOT NULL、
    * `lastMatchedAt` 正按它排序，而 `result` 不带截止日——只能显式传。
    *
-   * @remarks `difference` / `sinceDate` 不落库：它们描述的是这一次比对，全量重推即可复现。
+   * @remarks `difference` / `lastMatchedOn` 不落库：它们描述的是这一次比对，全量重推即可复现。
    */
   async add(
     ledgerId: string,

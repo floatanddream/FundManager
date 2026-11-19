@@ -25,7 +25,7 @@ export const transaction = sqliteTable('transaction', {
   /** 业务日期，只许 `YYYY-MM-DD`（§8.2） */
   date: text('date').notNull(),
   kind: text('kind', {
-    enum: ['subscribe', 'redeem', 'dividend_cash', 'dividend_reinvest', 'split', 'fee'],
+    enum: ['subscribe', 'redeem', 'dividend_cash', 'dividend_reinvest', 'split'],
   }).notNull(),
   /** 份额增减量；`split` 时为 null */
   sharesDelta: real('sharesDelta'),

@@ -30,7 +30,7 @@ it('份额对得上就是 matched，差一点也算（容差而非 ===）', () =
   expect(exact.matched).toBe(true)
   expect(exact.derivedShares).toBe(1000)
   expect(exact.difference).toBe(0)
-  expect(exact.sinceDate).toBeNull()
+  expect(exact.lastMatchedOn).toBeNull()
   expect(reconcile({ ...base, claimedShares: 1000.0000000001 }).matched).toBe(true)
 })
 
@@ -50,7 +50,7 @@ it('对不上时如实报差异，并给出上次对得上的日期；不修正�
   expect(r.matched).toBe(false)
   expect(r.difference).toBeCloseTo(100, 6)
   expect(r.claimedShares).toBe(900)
-  expect(r.sinceDate).toBe('2026-01-04')
+  expect(r.lastMatchedOn).toBe('2026-01-04')
   // 待确认流水不算进推导；函数是纯的，入参原样不动
   expect(r.derivedShares).toBe(1000)
   expect(transactions).toEqual(snapshot)

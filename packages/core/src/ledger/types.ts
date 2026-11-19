@@ -1,6 +1,13 @@
-/** 流水类型。现金分红与红利再投对成本、份额的影响完全不同，故分开记（设计 §七）。 */
+/**
+ * 流水类型。现金分红与红利再投对成本、份额的影响完全不同，故分开记（设计 §七）。
+ *
+ * **没有 `fee`（2026-11-19 修订）。** 类型里没有「这笔费属于哪笔交易」的字段，
+ * 孤立的费用记录只能猜着摊进成本——把赎回费摊进剩余持仓，单位成本与已实现收益
+ * 同时虚高且看着合理。费用一律并进所属交易：申购费进 `subscribe.amount`，
+ * 赎回费从 `redeem.amount` 里扣。
+ */
 export type TransactionKind =
-  'subscribe' | 'redeem' | 'dividend_cash' | 'dividend_reinvest' | 'split' | 'fee'
+  'subscribe' | 'redeem' | 'dividend_cash' | 'dividend_reinvest' | 'split'
 
 /**
  * 流水状态。推导只吃 `confirmed`；`pending` 是数据源拉到、尚待用户确认的
@@ -12,7 +19,11 @@ export type TransactionStatus = 'confirmed' | 'pending'
  * 一笔账本流水。持仓、成本、份额一律由已确认流水推导，不单独存状态。
  *
  * `amount` 的符号约定是**流向账本为正**：赎回、现金分红、红利再投的金额为正；
- * 申购、费用为负。
+ * 申购为负。申购金额**含申购费**，赎回金额是**已扣赎回费后的到账额**。
+ *
+ * 必填字段按 `kind` 校验（设计 §七），缺失时推导抛 `TypeError` 而不是当零：
+ * `subscribe` / `redeem` / `dividend_reinvest` 必须带 `sharesDelta`，
+ * `split` 必须带 `splitRatio`，`dividend_cash` 什么都不要。
  *
  * `sharesDelta` 与 `splitRatio` 量纲不同、互斥使用：前者是份额增减量，
  * 后者是折算**比例**（`1:0.3709` 存 `0.37094933`）。合并成一列会让
@@ -25,9 +36,9 @@ export type LedgerTransaction = {
   /** 业务日期，只许 `YYYY-MM-DD`（§8.2） */
   readonly date: string
   readonly kind: TransactionKind
-  /** 份额增减量；`split` 时为 null */
+  /** 份额增减量；`split` / `dividend_cash` 时为 null，其余为必填 */
   readonly sharesDelta: number | null
-  /** 份额折算比例；非 `split` 时为 null */
+  /** 份额折算比例；非 `split` 时为 null，`split` 时为必填 */
   readonly splitRatio: number | null
   /** 流向账本为正，见上 */
   readonly amount: number

@@ -15,7 +15,8 @@ import type { LedgerPosition, LedgerTransaction } from './types.ts'
  * @param asOf 截止日（含当日），`YYYY-MM-DD`
  * @returns 持仓；没有买入记录时 `cost` / `costPerShare` 为 null（成本未知），
  *   份额为 0 时 `costPerShare` 为 null
- * @throws {TypeError} 任一日期不是合法的 `YYYY-MM-DD`，或 `split` 缺折算比例
+ * @throws {TypeError} 任一日期不是合法的 `YYYY-MM-DD`；参与推导的流水缺该 `kind`
+ *   的必填字段；或出现已取消的 `fee` kind
  */
 export function derivePosition(
   transactions: readonly LedgerTransaction[],
@@ -45,7 +46,7 @@ export function derivePosition(
   for (const t of relevant) {
     switch (t.kind) {
       case 'subscribe':
-        shares += t.sharesDelta ?? 0
+        shares += requiredSharesDelta(t)
         // amount 流出为负，成本取其相反数（买入金额含申购费）
         cost = (cost ?? 0) - t.amount
         break
@@ -53,12 +54,12 @@ export function derivePosition(
         // 按两步展开：先记一笔现金分红（金额 = 再投金额）进已实现收益，
         // 再按同额买入。合成一步会让成本与已实现收益同时走样
         realizedGain += t.amount
-        shares += t.sharesDelta ?? 0
+        shares += requiredSharesDelta(t)
         // 再投金额按符号约定为正；买入是支出，成本加同额
         cost = (cost ?? 0) + t.amount
         break
       case 'redeem': {
-        const sold = -(t.sharesDelta ?? 0)
+        const sold = -requiredSharesDelta(t)
         const sharesBefore = shares
         shares -= sold
         // 按比例结转，单位成本不变。若写成「成本扣掉回款」，单位成本就退化成
@@ -85,11 +86,12 @@ export function derivePosition(
         // 总成本不变，单位成本随之按反比例变化
         shares *= t.splitRatio
         break
-      case 'fee':
-        // 费用计入买卖成本（amount 为负，故成本增加）。还没有任何买入记录时
-        // 无处归集，忽略它——凭空造出成本比不记更错
-        if (cost !== null) cost -= t.amount
-        break
+      default:
+        // 运行时兜底：`fee` 已从类型里删掉，但旧数据或外部输入仍可能带它。
+        // 静默把它当成本正是它被取消的原因，故显式报错
+        throw new TypeError(
+          `未知的流水 kind：${(t as { kind: string }).kind}（fee 已取消，费用请并入对应的 subscribe/redeem）：${t.id}`,
+        )
     }
   }
 
@@ -102,4 +104,15 @@ export function derivePosition(
     costPerShare: cost !== null && !approxEqual(shares, 0) ? cost / shares : null,
     realizedGain,
   }
+}
+
+/**
+ * 申购 / 赎回 / 红利再投必须有份额增减量。缺了不能当 0——赎回缺份额会变成
+ * 「赎回 0 份、整笔回款全进已实现收益」，凭空虚增收益（设计 §七「必填校验」）。
+ */
+function requiredSharesDelta(t: LedgerTransaction): number {
+  if (t.sharesDelta === null) {
+    throw new TypeError(`${t.kind} 流水缺 sharesDelta，无法推导份额与成本：${t.id}`)
+  }
+  return t.sharesDelta
 }

@@ -186,3 +186,22 @@ it('全部赎回后成本归零，已实现收益留下；份额为 0 时单位�
   expect(p.costPerShare).toBeNull() // 除零无意义，不是 Infinity
   expect(p.realizedGain).toBeCloseTo(100, 6)
 })
+
+it('必填字段缺失时抛错，不静默当零', () => {
+  // 赎回缺份额曾会算成「赎回 0 份、600 元全进已实现收益」——凭空虚增收益
+  const redeem = tx('2026-01-20', 'redeem', { amount: 600 })
+  expect(() => derivePosition([redeem], '000001', '2026-01-31')).toThrow(TypeError)
+  // 折算缺比例无法推断份额，不能当 1
+  const split = tx('2026-01-10', 'split', {})
+  expect(() => derivePosition([split], '000001', '2026-01-31')).toThrow(TypeError)
+  const subscribe = tx('2026-01-05', 'subscribe', { amount: -1000 })
+  expect(() => derivePosition([subscribe], '000001', '2026-01-31')).toThrow(TypeError)
+  const reinvest = tx('2026-01-06', 'dividend_reinvest', { amount: 120 })
+  expect(() => derivePosition([reinvest], '000001', '2026-01-31')).toThrow(TypeError)
+})
+
+it('旧数据里的 fee 流水抛错，不静默摊进成本', () => {
+  // fee 已从类型里取消；外部/旧数据带它时必须报错，否则赎回费会被摊进剩余持仓
+  const fee = { ...tx('2026-01-20', 'dividend_cash'), kind: 'fee' as never, amount: -5 }
+  expect(() => derivePosition([fee], '000001', '2026-01-31')).toThrow(/fee 已取消/)
+})

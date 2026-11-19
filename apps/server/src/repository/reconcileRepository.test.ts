@@ -9,7 +9,7 @@ const result = (matched: boolean, claimedShares: number): ReconcileResult => ({
   derivedShares: 1000,
   claimedShares,
   difference: 1000 - claimedShares,
-  sinceDate: null,
+  lastMatchedOn: null,
 })
 
 it('没对过账时 lastMatchedAt 是 null', async () => {
