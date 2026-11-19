@@ -59,7 +59,7 @@ FundManager/
 │   ├── server/           Fastify + Service/Repository + 定时任务 CLI
 │   └── web/              React + Vite + shadcn/ui + ECharts
 ├── packages/
-│   ├── core/             纯计算引擎（无 IO，不 import 框架）
+│   ├── core/             纯计算引擎（无 IO，不 import 框架）：收益 + 账本推导
 │   ├── datasource/       外部数据源适配 + 缓存 + 降级
 │   └── shared/           Zod 契约 + 共享类型
 └── docs/
@@ -74,14 +74,21 @@ FundManager/
 
 ## 当前状态
 
-git 已初始化，依赖已装齐。`packages/shared`（数值/日期工具 + 三种价格类型）与
-`packages/core`（`normalizeFlows` / `npv` / `xirr` / `timeWeightedReturn`）已实现并提交，
-计划 1 的四个任务完成。**计划 3（数据源层 `packages/datasource`）已完成**：20 个端点接入、
-按能力取数、缓存与降级（`stale` / `loss` 两个标记）、fixture 与契约测试两层。
+git 已初始化，依赖已装齐。**计划 1、3、4 已完成**：
+
+- `packages/shared` —— 数值/日期工具 + 三种价格类型（编译期隔离）
+- `packages/core` —— 收益（`normalizeFlows` / `npv` / `xirr` / `timeWeightedReturn`）
+  与账本推导（`derivePosition` / `toCashFlows` / `reconcile`）
+- `packages/datasource` —— 20 个端点、按能力取数、缓存与降级（`stale` / `loss`）
+- `apps/server` —— SQLite + Drizzle（`sqlite-proxy`）、三个 Repository、`CacheStore` 的 SQLite 实现
+
+**还没有任何路由与界面**：`apps/server` 没有 Service/Route，`apps/web` 仍是 Vite 样板。
+数据取得到、账算得出，但没有任何东西把它们串起来给用户看。
 
 **下一步看 `docs/ROUTE.md`（通往 MVP 的路线图）**——那里有各计划的状态、依赖与顺序；
 写新计划前先读 **`docs/LESSONS.md`**（按计划积累的经验，只写「下次照做什么」）。
-当前队列：计划 4（账本与持久化）、计划 2（`core` 风险指标，已写好未执行）。
+当前队列：计划 2（`core` 风险指标，**已写好可直接派**）→ 计划 5（估值与归因 + API + 预警，
+待设计）→ 计划 6（界面）。计划 5 依赖 2。
 
 新增文件前先确认目录约定（见上），不要凭空造结构。
 
@@ -98,7 +105,9 @@ git 已初始化，依赖已装齐。`packages/shared`（数值/日期工具 + �
 | 测试 | `pnpm test` | ✅ 可用（Vitest） |
 | 契约测试 | `pnpm test:contract` | ⚠️ 打真网络，允许因接口变动而红 |
 | 类型检查 | `pnpm typecheck` | ✅ `tsc --noEmit`。**三种价格类型的隔离只有它拦得住**——Vitest 不做类型检查 |
-| 格式化 | `pnpm format` | ✅ Prettier；恒等操作（干净仓库跑完无改动） |
+| 格式化 | `pnpm format` | ✅ Prettier 写回；恒等操作（干净仓库跑完无改动） |
+| 格式检查 | `pnpm format:check` | ✅ 只检查不写回，CI 用这条 |
+| CI | `.github/workflows/ci.yml` | ✅ test / typecheck / format:check。**类型隔离只有 typecheck 拦得住**，所以它在 CI 里 |
 | 开发 | 待定 | 待建 |
 
 ### Windows / Git Bash 注意
