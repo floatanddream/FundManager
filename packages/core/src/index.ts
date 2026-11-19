@@ -14,3 +14,4 @@ export type {
 export { reconcile } from './ledger/reconcile.ts'
 export type { ReconcileInput, ReconcileResult } from './ledger/reconcile.ts'
 export { dailyReturns } from './risk/series.ts'
+export { annualizedVolatility, downsideDeviation } from './risk/volatility.ts'
