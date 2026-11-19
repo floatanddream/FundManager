@@ -10,6 +10,7 @@ const tx = (
     splitRatio?: number
     amount?: number
     status?: 'confirmed' | 'pending'
+    sequence?: number
     ledgerId?: string
   } = {},
 ): LedgerTransaction => ({
@@ -22,6 +23,7 @@ const tx = (
   splitRatio: o.splitRatio ?? null,
   amount: o.amount ?? 0,
   status: o.status ?? 'confirmed',
+  sequence: o.sequence ?? null,
   note: null,
 })
 

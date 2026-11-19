@@ -5,7 +5,12 @@ import { reconcile } from './reconcile.ts'
 const tx = (
   date: string,
   kind: TransactionKind,
-  o: { sharesDelta?: number; status?: 'confirmed' | 'pending'; ledgerId?: string } = {},
+  o: {
+    sharesDelta?: number
+    status?: 'confirmed' | 'pending'
+    sequence?: number
+    ledgerId?: string
+  } = {},
 ): LedgerTransaction => ({
   id: `${date}-${kind}`,
   ledgerId: o.ledgerId ?? 'L1',
@@ -16,6 +21,7 @@ const tx = (
   splitRatio: null,
   amount: 0,
   status: o.status ?? 'confirmed',
+  sequence: o.sequence ?? null,
   note: null,
 })
 

@@ -7,7 +7,12 @@ import { createTransactionRepository } from './transactionRepository.ts'
 const tx = (
   date: string,
   kind: TransactionKind,
-  o: { sharesDelta?: number; amount?: number; status?: 'confirmed' | 'pending' } = {},
+  o: {
+    sharesDelta?: number
+    amount?: number
+    status?: 'confirmed' | 'pending'
+    sequence?: number
+  } = {},
 ): LedgerTransaction => ({
   id: `${date}-${kind}`,
   ledgerId: 'L1',
@@ -18,6 +23,7 @@ const tx = (
   splitRatio: null,
   amount: o.amount ?? 0,
   status: o.status ?? 'confirmed',
+  sequence: o.sequence ?? null,
   note: null,
 })
 
@@ -51,6 +57,7 @@ it('流水按基金取回，含 pending 的（过滤是推导层的事）', asyn
     splitRatio: null,
     amount: -1000,
     status: 'confirmed',
+    sequence: null,
     note: null,
   })
 })

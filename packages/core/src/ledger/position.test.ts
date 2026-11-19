@@ -10,6 +10,7 @@ const tx = (
     splitRatio?: number
     amount?: number
     status?: 'confirmed' | 'pending'
+    sequence?: number
     ledgerId?: string
   } = {},
 ): LedgerTransaction => ({
@@ -22,6 +23,7 @@ const tx = (
   splitRatio: o.splitRatio ?? null,
   amount: o.amount ?? 0,
   status: o.status ?? 'confirmed',
+  sequence: o.sequence ?? null,
   note: null,
 })
 
@@ -233,4 +235,24 @@ it('旧数据里的 fee 流水抛错，不静默摊进成本', () => {
   // fee 已从类型里取消；外部/旧数据带它时必须报错，否则赎回费会被摊进剩余持仓
   const fee = { ...tx('2026-01-20', 'dividend_cash'), kind: 'fee' as never, amount: -5 }
   expect(() => derivePosition([fee], 'L1', '000001', '2026-01-31')).toThrow(/fee 已取消/)
+})
+
+it('同一天换序不影响结果（按 sequence 排，不按入参顺序）', () => {
+  // 先申购 100 份，再按 1:2 折算 → 200 份
+  const buy = tx('2026-01-05', 'subscribe', { sharesDelta: 100, amount: -100, sequence: 0 })
+  const split = tx('2026-01-05', 'split', { splitRatio: 2, sequence: 1 })
+  expect(derivePosition([buy, split], 'L1', '000001', '2026-01-31').shares).toBe(200)
+  expect(derivePosition([split, buy], 'L1', '000001', '2026-01-31').shares).toBe(200)
+})
+
+it('同一天多笔缺 sequence 或 sequence 重复时抛错', () => {
+  const a = tx('2026-01-05', 'subscribe', { sharesDelta: 100, amount: -100 })
+  const b = tx('2026-01-05', 'split', { splitRatio: 2 })
+  // 缺 sequence：不能靠入参顺序猜
+  expect(() => derivePosition([a, b], 'L1', '000001', '2026-01-31')).toThrow(/sequence/)
+  // sequence 重复：同样无从确定先后
+  const dup = { ...b, sequence: 0 }
+  expect(() => derivePosition([{ ...a, sequence: 0 }, dup], 'L1', '000001', '2026-01-31')).toThrow(
+    /重复的 sequence/,
+  )
 })

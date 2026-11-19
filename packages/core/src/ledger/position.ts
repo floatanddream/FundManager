@@ -39,9 +39,14 @@ export function derivePosition(
     assertDate(t.date, 'LedgerTransaction.date')
     if (t.date <= asOf) relevant.push(t)
   }
-  // 日期定长 YYYY-MM-DD，字典序即时间序。同日多笔保持入参顺序（sort 稳定），
-  // 故同日内不要放相互依赖的事件（如先分红再按分红额再投），顺序无从保证
-  relevant.sort((a, b) => a.date.localeCompare(b.date))
+  // 先按日期（YYYY-MM-DD 定长，字典序即时间序），同日再按 sequence。
+  // **同日顺序不能依赖入参顺序**：同样的申购 + 折算，换序会算出不同份额
+  // （100 与 200），而调用方往往从数据库按 id 取出来，顺序本就不保证。
+  assertSameDaySequence(relevant)
+  relevant.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date)
+    return a.sequence! - b.sequence!
+  })
 
   let shares = 0
   // null 表示成本未知（从未有过买入记录）。不用 0 冒充——上层会把 0 当成真实成本
@@ -129,4 +134,36 @@ function requiredSharesDelta(t: LedgerTransaction): number {
     throw new TypeError(`${t.kind} 流水缺 sharesDelta，无法推导份额与成本：${t.id}`)
   }
   return t.sharesDelta
+}
+
+/**
+ * 同一天有多笔流水时，每笔都必须给 `sequence`，且同一天内不能重复。
+ *
+ * 不这样要求，推导就只能依赖入参顺序——而调用方多半是从数据库按 id 取出来的，
+ * 顺序本就不保证。同一天的申购与份额折算换个顺序，份额会从 100 变成 200。
+ *
+ * @throws {TypeError} 同一天有多笔但缺 `sequence`，或同一天内 `sequence` 重复
+ */
+function assertSameDaySequence(transactions: readonly LedgerTransaction[]): void {
+  const byDate = new Map<string, LedgerTransaction[]>()
+  for (const t of transactions) {
+    const list = byDate.get(t.date)
+    if (list === undefined) byDate.set(t.date, [t])
+    else list.push(t)
+  }
+  for (const [date, list] of byDate) {
+    if (list.length < 2) continue
+    const seen = new Set<number>()
+    for (const t of list) {
+      if (t.sequence === null) {
+        throw new TypeError(
+          `${date} 有 ${list.length} 笔流水，必须给 sequence（同日顺序不能靠入参顺序）：${t.id}`,
+        )
+      }
+      if (seen.has(t.sequence)) {
+        throw new TypeError(`${date} 有重复的 sequence ${t.sequence}：${t.id}`)
+      }
+      seen.add(t.sequence)
+    }
+  }
 }

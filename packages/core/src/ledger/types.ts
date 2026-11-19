@@ -43,6 +43,11 @@ export type LedgerTransaction = {
   /** 流向账本为正，见上 */
   readonly amount: number
   readonly status: TransactionStatus
+  /**
+   * 同一天内多笔的先后序号，从 0 起。**同一天有多笔时必须给**，否则推导无从确定顺序
+   * （同一天的申购与份额折算换序，份额会算出不同结果）。不同日期之间无需连续。
+   */
+  readonly sequence: number | null
   readonly note: string | null
 }
 

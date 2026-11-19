@@ -27,6 +27,7 @@ const ddl = [
     "splitRatio" REAL,
     "amount" REAL NOT NULL,
     "status" TEXT NOT NULL,
+    "sequence" INTEGER,
     "source" TEXT,
     "note" TEXT,
     "createdAt" TEXT NOT NULL

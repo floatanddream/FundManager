@@ -14,6 +14,7 @@ const columns = {
   splitRatio: transactionTable.splitRatio,
   amount: transactionTable.amount,
   status: transactionTable.status,
+  sequence: transactionTable.sequence,
   note: transactionTable.note,
 }
 
@@ -38,7 +39,7 @@ export const createTransactionRepository = (db: AppDatabase) => ({
       .select(columns)
       .from(transactionTable)
       .where(and(eq(transactionTable.ledgerId, ledgerId), eq(transactionTable.fundCode, fundCode)))
-      .orderBy(transactionTable.date)
+      .orderBy(transactionTable.date, transactionTable.sequence)
   },
 
   /** 某账本的全部流水（所有基金），按业务日期升序 */
@@ -47,7 +48,7 @@ export const createTransactionRepository = (db: AppDatabase) => ({
       .select(columns)
       .from(transactionTable)
       .where(eq(transactionTable.ledgerId, ledgerId))
-      .orderBy(transactionTable.date)
+      .orderBy(transactionTable.date, transactionTable.sequence)
   },
 
   /** 改状态。目前只用于「待确认 → 已确认」，但不对方向做限制 */

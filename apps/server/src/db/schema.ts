@@ -34,6 +34,11 @@ export const transaction = sqliteTable('transaction', {
   /** 流向账本为正，流出为负 */
   amount: real('amount').notNull(),
   status: text('status', { enum: ['confirmed', 'pending'] }).notNull(),
+  /**
+   * 同一天内多笔的先后序号，从 0 起。同日有多笔时必填——同日顺序不能靠入参顺序，
+   * 否则同样的申购 + 折算换序会算出不同份额。不同日期之间无需连续。
+   */
+  sequence: integer('sequence'),
   /** 流水来源，供排障：手工录入还是某个数据源 */
   source: text('source'),
   note: text('note'),
