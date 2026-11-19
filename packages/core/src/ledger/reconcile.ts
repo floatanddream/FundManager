@@ -4,6 +4,8 @@ import { derivePosition } from './position.ts'
 
 export type ReconcileInput = {
   readonly transactions: readonly LedgerTransaction[]
+  /** 对账的账本（§7.2：流水按账本隔离，两个账本的同名基金不能混算） */
+  readonly ledgerId: string
   readonly fundCode: string
   readonly asOf: string
   /** 用户声称的实际份额（平台显示值） */
@@ -39,13 +41,13 @@ export type ReconcileResult = {
  * 同日多笔顺序不保证、补录流水没有可观测边界，算出来仍可能指错。只转发「上次对得上
  * 的日期」，字段因此叫 `lastMatchedOn`。
  *
- * @param input 流水、基金、截止日、声称份额、上次对得上的日期
+ * @param input 流水、账本、基金、截止日、声称份额、上次对得上的日期
  * @returns 是否一致、推导份额、差异与上次对得上的日期
  * @throws {TypeError} `claimedShares` 非有限数；`lastMatchedAt` 非法；`asOf` 或参与推导的流水日期非法、
  *   或流水缺该 `kind` 的必填字段（后两类由 `derivePosition` 的 `assertDate` 透传）
  */
 export function reconcile(input: ReconcileInput): ReconcileResult {
-  const { transactions, fundCode, asOf, claimedShares, lastMatchedAt } = input
+  const { transactions, ledgerId, fundCode, asOf, claimedShares, lastMatchedAt } = input
   // 声称份额非有限数时任何比较都是 false，会静默变成「永远对不上」；
   // 这是参数非法，而不是数据缺失，故抛异常（§8.3）
   if (!Number.isFinite(claimedShares)) {
@@ -53,7 +55,7 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
   }
   if (lastMatchedAt !== null) assertDate(lastMatchedAt, 'lastMatchedAt')
 
-  const derivedShares = derivePosition(transactions, fundCode, asOf).shares
+  const derivedShares = derivePosition(transactions, ledgerId, fundCode, asOf).shares
   return {
     // 份额比较用容差而非 ===：浮点累计与平台四舍五入都可能在末位有差（§8.1）
     matched: approxEqual(derivedShares, claimedShares),

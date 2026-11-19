@@ -10,10 +10,11 @@ const tx = (
     splitRatio?: number
     amount?: number
     status?: 'confirmed' | 'pending'
+    ledgerId?: string
   } = {},
 ): LedgerTransaction => ({
   id: `${date}-${kind}`,
-  ledgerId: 'L1',
+  ledgerId: o.ledgerId ?? 'L1',
   fundCode: '000001',
   date,
   kind,
@@ -26,8 +27,12 @@ const tx = (
 
 it('份额按事件累计', () => {
   expect(
-    derivePosition([tx('2026-01-05', 'subscribe', { sharesDelta: 1000 })], '000001', '2026-01-31')
-      .shares,
+    derivePosition(
+      [tx('2026-01-05', 'subscribe', { sharesDelta: 1000 })],
+      'L1',
+      '000001',
+      '2026-01-31',
+    ).shares,
   ).toBe(1000)
 })
 
@@ -38,6 +43,7 @@ it('份额折算按比例乘，不是加减', () => {
       tx('2026-01-05', 'subscribe', { sharesDelta: 1000 }),
       tx('2026-01-10', 'split', { splitRatio: 0.37094933 }),
     ],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -50,6 +56,7 @@ it('截止日之后的流水不计入', () => {
       tx('2026-01-05', 'subscribe', { sharesDelta: 1000 }),
       tx('2026-03-01', 'subscribe', { sharesDelta: 500 }),
     ],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -62,16 +69,20 @@ it('待确认流水不算进持仓', () => {
       tx('2026-01-05', 'subscribe', { sharesDelta: 1000 }),
       tx('2026-01-06', 'dividend_reinvest', { sharesDelta: 10, status: 'pending' }),
     ],
+    'L1',
     '000001',
     '2026-01-31',
   )
   expect(p.shares).toBe(1000)
 })
 
-it('只算这一只基金', () => {
-  const other = { ...tx('2026-01-05', 'subscribe', { sharesDelta: 999 }), fundCode: '011609' }
+it('只算这一只基金、这一个账本', () => {
+  const otherFund = { ...tx('2026-01-05', 'subscribe', { sharesDelta: 999 }), fundCode: '011609' }
+  // 另一个账本持有同一只基金 50 份，混进来会加成 1050
+  const otherLedger = tx('2026-01-06', 'subscribe', { sharesDelta: 50, ledgerId: 'L2' })
   const p = derivePosition(
-    [tx('2026-01-05', 'subscribe', { sharesDelta: 1000 }), other],
+    [tx('2026-01-05', 'subscribe', { sharesDelta: 1000 }), otherFund, otherLedger],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -81,6 +92,7 @@ it('只算这一只基金', () => {
 it('买入把金额摊进成本', () => {
   const p = derivePosition(
     [tx('2026-01-05', 'subscribe', { sharesDelta: 1000, amount: -1000 })],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -95,6 +107,7 @@ it('赎回按比例结转，单位成本不变', () => {
       tx('2026-01-05', 'subscribe', { sharesDelta: 1000, amount: -1000 }),
       tx('2026-01-20', 'redeem', { sharesDelta: -500, amount: 600 }),
     ],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -110,6 +123,7 @@ it('现金分红记已实现收益，不冲成本', () => {
       tx('2026-01-05', 'subscribe', { sharesDelta: 1000, amount: -1000 }),
       tx('2026-01-20', 'dividend_cash', { sharesDelta: 0, amount: 50 }),
     ],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -125,6 +139,7 @@ it('红利再投按两步展开：先记已实现收益，再按再投净值买�
       tx('2026-01-20', 'redeem', { sharesDelta: -500, amount: 500 }),
       tx('2026-01-25', 'dividend_reinvest', { sharesDelta: 100, amount: 120 }),
     ],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -139,6 +154,7 @@ it('份额折算不改变成本，单位成本按反比例变', () => {
       tx('2026-01-05', 'subscribe', { sharesDelta: 1000, amount: -1000 }),
       tx('2026-01-10', 'split', { splitRatio: 0.5 }),
     ],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -154,6 +170,7 @@ it('没有买入记录时成本是 null，不编数字；之后有买入要能�
       tx('2026-01-10', 'dividend_cash', { sharesDelta: 0, amount: 50 }),
       tx('2026-01-15', 'split', { splitRatio: 0.5 }),
     ],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -166,6 +183,7 @@ it('没有买入记录时成本是 null，不编数字；之后有买入要能�
       tx('2026-01-10', 'dividend_cash', { sharesDelta: 0, amount: 50 }),
       tx('2026-01-20', 'subscribe', { sharesDelta: 100, amount: -120 }),
     ],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -178,6 +196,7 @@ it('全部赎回后成本归零，已实现收益留下；份额为 0 时单位�
       tx('2026-01-05', 'subscribe', { sharesDelta: 1000, amount: -1000 }),
       tx('2026-01-20', 'redeem', { sharesDelta: -1000, amount: 1100 }),
     ],
+    'L1',
     '000001',
     '2026-01-31',
   )
@@ -187,21 +206,31 @@ it('全部赎回后成本归零，已实现收益留下；份额为 0 时单位�
   expect(p.realizedGain).toBeCloseTo(100, 6)
 })
 
+it('赎回超过账面份额时抛错，不给出负份额与虚增的已实现收益', () => {
+  const overRedeem = [
+    tx('2026-01-05', 'subscribe', { sharesDelta: 100, amount: -100 }),
+    tx('2026-01-20', 'redeem', { sharesDelta: -120, amount: 130 }),
+  ]
+  expect(() => derivePosition(overRedeem, 'L1', '000001', '2026-01-31')).toThrow(
+    /赎回 120 份但账面只有 100 份/,
+  )
+})
+
 it('必填字段缺失时抛错，不静默当零', () => {
   // 赎回缺份额曾会算成「赎回 0 份、600 元全进已实现收益」——凭空虚增收益
   const redeem = tx('2026-01-20', 'redeem', { amount: 600 })
-  expect(() => derivePosition([redeem], '000001', '2026-01-31')).toThrow(TypeError)
+  expect(() => derivePosition([redeem], 'L1', '000001', '2026-01-31')).toThrow(TypeError)
   // 折算缺比例无法推断份额，不能当 1
   const split = tx('2026-01-10', 'split', {})
-  expect(() => derivePosition([split], '000001', '2026-01-31')).toThrow(TypeError)
+  expect(() => derivePosition([split], 'L1', '000001', '2026-01-31')).toThrow(TypeError)
   const subscribe = tx('2026-01-05', 'subscribe', { amount: -1000 })
-  expect(() => derivePosition([subscribe], '000001', '2026-01-31')).toThrow(TypeError)
+  expect(() => derivePosition([subscribe], 'L1', '000001', '2026-01-31')).toThrow(TypeError)
   const reinvest = tx('2026-01-06', 'dividend_reinvest', { amount: 120 })
-  expect(() => derivePosition([reinvest], '000001', '2026-01-31')).toThrow(TypeError)
+  expect(() => derivePosition([reinvest], 'L1', '000001', '2026-01-31')).toThrow(TypeError)
 })
 
 it('旧数据里的 fee 流水抛错，不静默摊进成本', () => {
   // fee 已从类型里取消；外部/旧数据带它时必须报错，否则赎回费会被摊进剩余持仓
   const fee = { ...tx('2026-01-20', 'dividend_cash'), kind: 'fee' as never, amount: -5 }
-  expect(() => derivePosition([fee], '000001', '2026-01-31')).toThrow(/fee 已取消/)
+  expect(() => derivePosition([fee], 'L1', '000001', '2026-01-31')).toThrow(/fee 已取消/)
 })

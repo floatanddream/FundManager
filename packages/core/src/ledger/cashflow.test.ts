@@ -10,10 +10,11 @@ const tx = (
     splitRatio?: number
     amount?: number
     status?: 'confirmed' | 'pending'
+    ledgerId?: string
   } = {},
 ): LedgerTransaction => ({
   id: `${date}-${kind}`,
-  ledgerId: 'L1',
+  ledgerId: o.ledgerId ?? 'L1',
   fundCode: '000001',
   date,
   kind,
@@ -31,6 +32,7 @@ it('只导出真正进出账本的钱，按日期升序', () => {
       tx('2026-01-05', 'subscribe', { sharesDelta: 1000, amount: -1000 }),
       tx('2026-01-25', 'dividend_cash', { sharesDelta: 0, amount: 50 }),
     ],
+    'L1',
     '000001',
   )
   expect(flows).toEqual([
@@ -47,22 +49,30 @@ it('红利再投与份额折算没有外部现金流', () => {
         tx('2026-01-25', 'dividend_reinvest', { sharesDelta: 100, amount: 120 }),
         tx('2026-01-26', 'split', { splitRatio: 0.5 }),
       ],
+      'L1',
       '000001',
     ),
   ).toEqual([])
 })
 
-it('待确认流水与其他基金的流水不进现金流', () => {
-  const other = {
+it('待确认流水、其他基金与其他账本的流水不进现金流', () => {
+  const otherFund = {
     ...tx('2026-01-06', 'subscribe', { sharesDelta: 999, amount: -999 }),
     fundCode: '011609',
   }
+  const otherLedger = tx('2026-01-08', 'subscribe', {
+    sharesDelta: 50,
+    amount: -50,
+    ledgerId: 'L2',
+  })
   const flows = toCashFlows(
     [
       tx('2026-01-05', 'subscribe', { sharesDelta: 1000, amount: -1000, status: 'pending' }),
-      other,
+      otherFund,
+      otherLedger,
       tx('2026-01-07', 'subscribe', { sharesDelta: 10, amount: -10 }),
     ],
+    'L1',
     '000001',
   )
   expect(flows).toEqual([{ date: '2026-01-07', amount: -10 }])

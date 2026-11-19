@@ -18,12 +18,17 @@ import type { LedgerTransaction } from './types.ts'
  * 那是估值、属计划 5；本层不知道今天的净值，调了只能编。这里只产出纯流水，
  * 收益率的求解留给有市值的一方。
  *
- * @param transactions 全部流水（可含待确认、其他基金的），这里负责筛选
+ * **必须按账本筛选**（§7.2）：两个账本买同一只基金时，现金流混在一起算出的收益率
+ * 不属于任何一个账本。`ledgerId` 是必填参数，漏传编译器就报错。
+ *
+ * @param transactions 全部流水（可含待确认、其他基金、其他账本的），这里负责筛选
+ * @param ledgerId 只看这个账本
  * @param fundCode 只看这一只基金
  * @returns 新数组，按日期升序；不合并同日，不修改入参
  */
 export function toCashFlows(
   transactions: readonly LedgerTransaction[],
+  ledgerId: string,
   fundCode: string,
 ): readonly CashFlow[] {
   return (
@@ -31,6 +36,7 @@ export function toCashFlows(
       .filter(
         (t) =>
           t.status === 'confirmed' &&
+          t.ledgerId === ledgerId &&
           t.fundCode === fundCode &&
           (t.kind === 'subscribe' || t.kind === 'redeem' || t.kind === 'dividend_cash'),
       )

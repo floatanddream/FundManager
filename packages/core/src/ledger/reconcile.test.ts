@@ -5,10 +5,10 @@ import { reconcile } from './reconcile.ts'
 const tx = (
   date: string,
   kind: TransactionKind,
-  o: { sharesDelta?: number; status?: 'confirmed' | 'pending' } = {},
+  o: { sharesDelta?: number; status?: 'confirmed' | 'pending'; ledgerId?: string } = {},
 ): LedgerTransaction => ({
   id: `${date}-${kind}`,
-  ledgerId: 'L1',
+  ledgerId: o.ledgerId ?? 'L1',
   fundCode: '000001',
   date,
   kind,
@@ -21,7 +21,12 @@ const tx = (
 
 it('份额对得上就是 matched，差一点也算（容差而非 ===）', () => {
   const base = {
-    transactions: [tx('2026-01-05', 'subscribe', { sharesDelta: 1000 })],
+    // 另一个账本的 500 份不能算进来，否则 1000 会被推成 1500
+    transactions: [
+      tx('2026-01-05', 'subscribe', { sharesDelta: 1000 }),
+      tx('2026-01-05', 'subscribe', { sharesDelta: 500, ledgerId: 'L2' }),
+    ],
+    ledgerId: 'L1',
     fundCode: '000001',
     asOf: '2026-01-31',
     lastMatchedAt: null,
@@ -42,6 +47,7 @@ it('对不上时如实报差异，并给出上次对得上的日期；不修正�
   const snapshot = structuredClone(transactions)
   const r = reconcile({
     transactions,
+    ledgerId: 'L1',
     fundCode: '000001',
     asOf: '2026-01-31',
     claimedShares: 900,
@@ -63,6 +69,7 @@ it('补录一笔早于上次对账日的流水也算得出来（全量重推）'
       tx('2026-01-05', 'subscribe', { sharesDelta: 1000 }),
       tx('2026-01-10', 'subscribe', { sharesDelta: 200 }),
     ],
+    ledgerId: 'L1',
     fundCode: '000001',
     asOf: '2026-01-31',
     claimedShares: 1200,
