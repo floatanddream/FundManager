@@ -27,7 +27,7 @@ export const transaction = sqliteTable('transaction', {
   kind: text('kind', {
     enum: ['subscribe', 'redeem', 'dividend_cash', 'dividend_reinvest', 'split'],
   }).notNull(),
-  /** 份额增减量；`split` 时为 null */
+  /** 份额增减量。`split` 时为 null（折算改的是比例）；其余 kind 按设计 §七 必填 */
   sharesDelta: real('sharesDelta'),
   /** 份额折算**比例**；非 `split` 时为 null。与 `sharesDelta` 互斥（设计 §七） */
   splitRatio: real('splitRatio'),

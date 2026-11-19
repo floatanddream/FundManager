@@ -41,7 +41,8 @@ export type ReconcileResult = {
  *
  * @param input 流水、基金、截止日、声称份额、上次对得上的日期
  * @returns 是否一致、推导份额、差异与上次对得上的日期
- * @throws {TypeError} 日期非法；流水缺该 `kind` 的必填字段（均由 `derivePosition` 抛出）
+ * @throws {TypeError} `claimedShares` 非有限数；`lastMatchedAt` 非法；`asOf` 或参与推导的流水日期非法、
+ *   或流水缺该 `kind` 的必填字段（后两类由 `derivePosition` 的 `assertDate` 透传）
  */
 export function reconcile(input: ReconcileInput): ReconcileResult {
   const { transactions, fundCode, asOf, claimedShares, lastMatchedAt } = input
