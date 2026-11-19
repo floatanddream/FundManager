@@ -18,6 +18,30 @@ const RATE_LOWER_BOUND = -0.9999
 /** 上界取 1000%：再高的年化没有实际意义，且容易把求根带偏。 */
 const RATE_UPPER_BOUND = 10
 
+/** 多根扫描步长。采样式检测，间隔小于一个步长的两根会漏掉，故取 0.001（年化 0.1 个百分点）。 */
+const ROOT_SCAN_STEP = 0.001
+
+/** 判定两个采样到的根是否同一个的容差，远小于扫描步长，不会把相邻的根并掉。 */
+const ROOT_MERGE_EPSILON = 1e-4
+
+/**
+ * 现金流存在多个正根——XIRR 的解不唯一，没有哪一个可以被当成「那个」收益率。
+ *
+ * 这不是计算失败：每个根都让 NPV 归零。调用方应当展示「无法给出单一收益率」，
+ * 而不是换一个算法或忽略错误。
+ */
+export class MultipleRootsError extends Error {
+  /** 扫描到的全部根（年化收益率，小数）。 */
+  readonly roots: readonly number[]
+
+  constructor(roots: readonly number[]) {
+    const listed = roots.map((r) => `${(r * 100).toFixed(2)}%`).join('、')
+    super(`XIRR 存在多个解（${roots.length} 个：${listed}），收益率不唯一，不能挑一个当答案`)
+    this.name = 'MultipleRootsError'
+    this.roots = [...roots]
+  }
+}
+
 /**
  * 取最早一笔的日期，作为贴现基准。
  *
@@ -99,23 +123,14 @@ function solveNewton(flows: readonly CashFlow[]): number | null {
   return null
 }
 
-/**
- * 二分法求根。比牛顿法慢，但只要有符号变化就必然收敛。
- *
- * @returns 区间内有解则返回近似解；两端同号（无解）返回 null
- */
-function solveBisection(flows: readonly CashFlow[]): number | null {
-  let lo = RATE_LOWER_BOUND
-  let hi = RATE_UPPER_BOUND
-  let fLo = npv(lo, flows)
-  const fHi = npv(hi, flows)
-  if (!Number.isFinite(fLo) || !Number.isFinite(fHi)) return null
-  // 两端同号说明区间内不存在零点，继续折半没有意义
-  if (fLo * fHi > 0) return null
+/** 二分求根，要求调用方已知 [lo, hi] 两端异号（或其中一端为根）。 */
+function bisect(lo: number, hi: number, evaluate: (rate: number) => number): number {
+  let fLo = evaluate(lo)
+  if (fLo === 0) return lo
 
   for (let i = 0; i < BISECTION_MAX_ITERATIONS; i++) {
     const mid = (lo + hi) / 2
-    const fMid = npv(mid, flows)
+    const fMid = evaluate(mid)
     if (Math.abs(fMid) < NPV_EPSILON) return mid
     // 零点必在被符号变化夹住的那一侧，据此收缩区间
     if (fLo * fMid < 0) {
@@ -129,12 +144,118 @@ function solveBisection(flows: readonly CashFlow[]): number | null {
 }
 
 /**
+ * 二分法求根。比牛顿法慢，但只要有符号变化就必然收敛。
+ *
+ * @returns 区间内有解则返回近似解；两端同号（无解）返回 null
+ */
+function solveBisection(flows: readonly CashFlow[]): number | null {
+  const lo = RATE_LOWER_BOUND
+  const hi = RATE_UPPER_BOUND
+  const fLo = npv(lo, flows)
+  const fHi = npv(hi, flows)
+  if (!Number.isFinite(fLo) || !Number.isFinite(fHi)) return null
+  // 两端同号说明区间内不存在零点，继续折半没有意义
+  if (fLo * fHi > 0) return null
+  return bisect(lo, hi, (rate) => npv(rate, flows))
+}
+
+/** 一笔现金流折算到「金额 + 距首笔年数」，供扫描时复用。 */
+type DiscountTerm = { readonly amount: number; readonly t: number }
+
+/**
+ * 预计算贴现年数。
+ *
+ * 扫描要在几万个采样点上求值；每次走 npv 都会重新校验并解析全部日期，白白多出几十倍开销。
+ * 归一后的现金流首笔即最早一笔，与 npv 的基准一致，故年数只需算一次。
+ * 仅对 `normalizeFlows` 的结果调用。
+ */
+function discountTerms(flows: readonly CashFlow[]): DiscountTerm[] {
+  const first = flows[0]
+  if (first === undefined) return []
+  return flows.map((f) => ({
+    amount: f.amount,
+    t: daysBetween(first.date, f.date) / DAYS_PER_YEAR,
+  }))
+}
+
+/** 用预计算年数求 NPV，与 npv 在归一输入上等价。 */
+function npvTerms(rate: number, terms: readonly DiscountTerm[]): number {
+  return terms.reduce((sum, { amount, t }) => sum + amount / (1 + rate) ** t, 0)
+}
+
+/**
+ * 现金流按时间顺序的符号变化次数。
+ *
+ * 广义笛卡尔符号法则：NPV 可写成关于 x = 1/(1+rate) 的实指数多项式，
+ * 其正根个数不超过系数的符号变化次数。因此变化 ≤ 1 时至多一个解，不必扫描。
+ */
+function countSignChanges(flows: readonly CashFlow[]): number {
+  let changes = 0
+  let previous = 0
+  for (const f of flows) {
+    const sign = Math.sign(f.amount)
+    if (sign === 0) continue
+    if (previous !== 0 && sign !== previous) changes++
+    previous = sign
+  }
+  return changes
+}
+
+/** 按容差去重并升序排列根，消除采样点恰好落在根上造成的重复。 */
+function dedupeRoots(roots: readonly number[]): number[] {
+  const sorted = [...roots].sort((a, b) => a - b)
+  return sorted.filter((r, i) => i === 0 || Math.abs(r - sorted[i - 1]!) >= ROOT_MERGE_EPSILON)
+}
+
+/**
+ * 扫描 [RATE_LOWER_BOUND, RATE_UPPER_BOUND] 内的全部根。
+ *
+ * 只判 NPV 符号、不跑牛顿法：每个采样点只是一次贴现求和。采样式检测，
+ * 步长见 ROOT_SCAN_STEP——比它更近的两个根会被并成一个，这是本检测的已知边界。
+ */
+function scanRoots(terms: readonly DiscountTerm[]): number[] {
+  const evaluate = (rate: number) => npvTerms(rate, terms)
+  const roots: number[] = []
+  const steps = Math.round((RATE_UPPER_BOUND - RATE_LOWER_BOUND) / ROOT_SCAN_STEP)
+
+  const initial = evaluate(RATE_LOWER_BOUND)
+  let previousRate = RATE_LOWER_BOUND
+  let previousSign = Number.isFinite(initial) ? Math.sign(initial) : 0
+
+  for (let i = 1; i <= steps; i++) {
+    const rate = RATE_LOWER_BOUND + i * ROOT_SCAN_STEP
+    const value = evaluate(rate)
+    const sign = Number.isFinite(value) ? Math.sign(value) : 0
+
+    if (sign === 0) {
+      // 采样点恰好落在根上（直接记下），或利率过低导致贴现溢出（无从比较符号）——
+      // 两者都从这里重新起算
+      if (Number.isFinite(value)) roots.push(rate)
+      previousRate = rate
+      previousSign = 0
+      continue
+    }
+
+    // 端点异号说明区间内至少有一个根；二分细化后才放进结果，错误信息才能列出具体数值
+    if (previousSign !== 0 && sign !== previousSign)
+      roots.push(bisect(previousRate, rate, evaluate))
+    previousRate = rate
+    previousSign = sign
+  }
+  return dedupeRoots(roots)
+}
+
+/**
  * 资金加权收益率（年化）。回答「我这笔钱实际赚了多少」，
  * 与时间加权（TWR）回答的「基金经理行不行」是两个不同问题。
+ *
+ * XIRR 的方程在数学上可能不唯一：现金流多次改变方向时，多个不同的年化率都能让 NPV 归零。
+ * 此时不挑一个返回，而是抛错——挑一个等于静默给出一个看似合理的错值。
  *
  * @param flows 现金流，顺序任意。amount 负数为投入，正数为收回
  * @returns 年化收益率；无解时返回 null
  * @throws {TypeError} 日期非法或金额不是有限数（调用方的 bug，须早暴露）
+ * @throws {MultipleRootsError} 现金流有多个正根，收益率不唯一；错误的 `roots` 含全部根
  */
 export function xirr(flows: readonly CashFlow[]): number | null {
   const normalized = normalizeFlows(flows)
@@ -149,5 +270,18 @@ export function xirr(flows: readonly CashFlow[]): number | null {
   if (!hasNegative || !hasPositive) return null
 
   // 先试快的；牛顿法放弃时（返回 null）由二分法兜底，故用 ?? 而非 ||
-  return solveNewton(normalized) ?? solveBisection(normalized)
+  const solution = solveNewton(normalized) ?? solveBisection(normalized)
+
+  // 普通投资是「先投后收」，只有一次符号变化，至多一个正根，正常路径不必扫描。
+  // 只有符号变化 ≥2 时才可能多解，值得花一次扫描的钱验明正身。
+  if (countSignChanges(normalized) >= 2) {
+    const roots = scanRoots(discountTerms(normalized))
+    // 牛顿法可能收敛到扫描范围之外的根（如年化超过 1000%），它同样是解，也要列进去
+    if (solution !== null && !roots.some((r) => Math.abs(r - solution) < ROOT_MERGE_EPSILON)) {
+      roots.push(solution)
+    }
+    if (roots.length > 1) throw new MultipleRootsError(roots)
+  }
+
+  return solution
 }
