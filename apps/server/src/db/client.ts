@@ -31,6 +31,14 @@ const ddl = [
     "note" TEXT,
     "createdAt" TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS "cache" (
+    "key" TEXT PRIMARY KEY NOT NULL,
+    "value" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "dataAsOf" TEXT NOT NULL,
+    "capturedAt" TEXT NOT NULL,
+    "expiresAt" INTEGER NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS "reconcile" (
     "id" TEXT PRIMARY KEY NOT NULL,
     "ledgerId" TEXT NOT NULL,
@@ -50,7 +58,7 @@ export type AppDatabase = ReturnType<typeof createDatabase>
 const createDatabase = (sqlite: DatabaseSync) => drizzle(createSqliteProxy(sqlite), { schema })
 
 /**
- * 打开本地库并保证三张表存在。
+ * 打开本地库并保证各表存在。
  *
  * @param location SQLite 文件路径；省略时为 `:memory:`（测试用）
  *

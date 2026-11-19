@@ -1,7 +1,7 @@
 import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 /**
- * 三张表，字段见设计 §七。
+ * 设计 §七 的三张账本表，外加数据源层的 `cache` 表。
  *
  * @remarks 表名用**单数**、列名用 camelCase。`transaction` 是 SQL 关键字，
  * 建表与查询都必须加引号——Drizzle 生成 SQL 时会自动加，手写 DDL 时不能忘。
@@ -53,4 +53,20 @@ export const reconcile = sqliteTable('reconcile', {
   matched: integer('matched', { mode: 'boolean' }).notNull(),
   note: text('note'),
   createdAt: text('createdAt').notNull(),
+})
+
+/**
+ * 数据源层 `CacheStore` 的落库形态（计划 3 留的扩展缝）。
+ *
+ * @remarks `value` 存 **JSON 文本**而非 blob——出问题时能直接 `SELECT` 出来看。
+ * 信封各字段单列，便于排查「这条数据多旧」。
+ */
+export const cache = sqliteTable('cache', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  source: text('source').notNull(),
+  dataAsOf: text('dataAsOf').notNull(),
+  capturedAt: text('capturedAt').notNull(),
+  /** 过期时刻，epoch 毫秒 */
+  expiresAt: integer('expiresAt').notNull(),
 })
