@@ -36,7 +36,7 @@ const fresh = async (txs: readonly LedgerTransaction[] = [tx()]) => {
     ledgerRepository: createLedgerRepository(db),
     reconcileRepository: createReconcileRepository(db),
   }
-  return { db, deps, transactionRepository }
+  return { db, sqlite, deps, transactionRepository }
 }
 
 it('份额对得上就 matched，上次对得上的日期一并带出', async () => {

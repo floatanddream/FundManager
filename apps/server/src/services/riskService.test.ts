@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
 import { navConfirmed } from '@fundmanager/shared'
+import { DataSourceError } from '@fundmanager/datasource'
 import type { Fetched, FundDataSource, NavHistory, NavHistoryRow } from '@fundmanager/datasource'
 import type { LedgerTransaction } from '@fundmanager/core'
 import { buildApp } from '../app.ts'
@@ -141,6 +142,20 @@ it('组合 stale 穿透：任一基金净值降级，组合信封就 stale', asy
     asOf: '2026-01-03',
   })
   expect([r.stale, r.value!.maxDrawdown.stale]).toEqual([true, true])
+})
+
+it('单只基金净值失败时其余基金仍参与组合，且 loss 点名缺失基金', async () => {
+  const txs = ['000001', '000002'].map((fundCode) => tx({ fundCode, date: '2026-01-01' }))
+  const base = portfolioDeps(txs, {})
+  const dataSource: RiskDeps['dataSource'] = {
+    navHistory: async (fundCode: string) => {
+      if (fundCode === '000001') throw new DataSourceError('净值接口失败')
+      return fetched(plainRows(1))
+    },
+  }
+  const r = await getPortfolioRisk({ ...base, dataSource }, 'L1', { asOf: '2026-01-03' })
+  expect(r.value?.members.map((member) => member.observations)).toEqual([0, 3])
+  expect(r.loss).toContain('000001')
 })
 
 it('单基金风险路由不需要账本；坏基金代码是 400', async () => {
