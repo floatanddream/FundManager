@@ -4,9 +4,13 @@
   "private": true,
   "description": "Fastify 后端：HTTP API + 定时任务 CLI",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./src/server.ts",
+  "scripts": {
+    "start": "node src/server.ts"
+  },
   "license": "MIT",
   "dependencies": {
+    "@fastify/cors": "^11.4.3",
     "@fundmanager/core": "workspace:*",
     "@fundmanager/datasource": "workspace:*",
     "@fundmanager/shared": "workspace:*",
