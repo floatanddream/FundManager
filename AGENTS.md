@@ -108,7 +108,7 @@ git 已初始化，依赖已装齐。**计划 1、3、4 已完成**：
 | 格式化 | `pnpm format` | ✅ Prettier 写回；恒等操作（干净仓库跑完无改动） |
 | 格式检查 | `pnpm format:check` | ✅ 只检查不写回，CI 用这条 |
 | CI | `.github/workflows/ci.yml` | ✅ test / typecheck / format:check。**类型隔离只有 typecheck 拦得住**，所以它在 CI 里 |
-| 启动服务 | `pnpm --filter @fundmanager/server start` | ✅ 默认 `http://localhost:5178`。`PORT` / `CORS_ORIGIN` / `DB_PATH` 可配，接口见 `docs/api.md` |
+| 启动服务 | `pnpm --filter @fundmanager/server start` | ✅ 默认 `http://localhost:3000`。`PORT` / `CORS_ORIGIN` / `DB_PATH` 可配，接口见 `docs/api.md` |
 | 开发 | 待定 | 待建 |
 
 ### Windows / Git Bash 注意

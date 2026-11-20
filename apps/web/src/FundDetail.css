@@ -1,0 +1,153 @@
+.fund-detail {
+  padding: 21px 21px 0;
+  text-align: left;
+}
+
+.fd-header {
+  margin-bottom: 16px;
+}
+
+.fd-header p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.fd-chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 9px;
+}
+
+.fd-segments {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--hover);
+}
+
+.fd-segments button {
+  border-radius: 5px;
+  padding: 6px 11px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 580;
+  white-space: nowrap;
+}
+
+.fd-segments button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.fund-detail-chart,
+.fd-state {
+  height: 274px;
+  width: 100%;
+  margin-top: 10px;
+}
+.fd-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.fd-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.fd-source details {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fd-source summary,
+.fd-profile summary {
+  color: var(--accent);
+}
+.fd-source details p {
+  margin-top: 4px;
+}
+.fd-warning {
+  color: var(--warning);
+}
+.fd-source p.fd-warning {
+  flex: 0 0 100%;
+}
+.fd-error {
+  color: var(--gain);
+}
+
+.fd-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  margin-top: 15px;
+  border-top: 1px solid var(--line);
+}
+.fd-metric {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 13px 14px 14px 0;
+}
+.fd-metric + .fd-metric {
+  padding-left: 15px;
+  border-left: 1px solid var(--line);
+}
+.fd-metric > span,
+.fd-metric > p {
+  color: var(--muted);
+  font-size: 12px;
+}
+.fd-metric > p.fd-error {
+  color: var(--gain);
+}
+.fd-metric > strong {
+  font-size: 25px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+}
+.fd-profile {
+  border-top: 1px solid var(--line);
+  padding-block: 13px;
+}
+.fd-profile dl {
+  margin: 9px 0;
+  font-size: 13px;
+}
+.fd-profile dl div {
+  display: grid;
+  grid-template-columns: 6.4em 1fr;
+  padding-block: 3px;
+}
+.fd-profile dt {
+  color: var(--muted);
+}
+
+@media (max-width: 590px) {
+  .fund-detail {
+    padding-inline: 14px;
+  }
+  .fd-segments button {
+    padding-inline: 8px;
+  }
+  .fund-detail-chart,
+  .fd-state {
+    height: 224px;
+  }
+  .fd-metric > strong {
+    font-size: 22px;
+  }
+}

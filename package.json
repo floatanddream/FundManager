@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "pnpm --parallel --filter @fundmanager/server --filter web run dev",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:contract": "vitest run -c packages/datasource/test/contract/vitest.contract.config.ts",

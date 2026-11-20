@@ -5,11 +5,11 @@
  * 不用改全局状态。
  */
 
-/** API 端口，避开 Vite 的 5173 */
-export const DEFAULT_PORT = 5178
+/** API 端口，避开 Vite 的 3001 */
+export const DEFAULT_PORT = 3000
 
 /** 开发时前端 Vite dev server 的来源；生产由前端静态服务同源代理，不开宽 CORS */
-export const DEFAULT_CORS_ORIGIN = 'http://localhost:5173'
+export const DEFAULT_CORS_ORIGIN = 'http://localhost:3001'
 
 /** 相对路径按启动时的工作目录解析 */
 export const DEFAULT_DB_PATH = './data/fundmanager.db'

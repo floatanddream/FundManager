@@ -1,32 +1,13 @@
-# React + TypeScript + Vite
+# FundManager 前端
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+在仓库根目录安装依赖后，用一条命令同时启动前后端。
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+pnpm dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+访问 <http://localhost:3001>。前端默认请求 `http://localhost:3000/api`。如果修改了后端端口，在前端启动或构建时设置 `VITE_API_URL` 为 API 的来源地址，不含 `/api`。跨域部署时，把后端的 `CORS_ORIGIN` 设为前端页面的来源。通过同源反向代理转发 `/api` 时，把 `VITE_API_URL` 设为显式空值后构建。
+
+首次打开可创建本地账本。通过基金查询进入详情，再录入第一笔流水。持仓页可查看净值、收益与风险指标，并核对平台份额。
+
+运行 `pnpm --filter web build` 构建静态文件，输出位于 `apps/web/dist`。

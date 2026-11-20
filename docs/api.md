@@ -18,8 +18,8 @@
 
 | 项 | 值 | 怎么改 |
 |---|---|---|
-| Base URL | `http://localhost:5178` | 环境变量 `PORT`（默认 5178，避开 Vite 的 5173） |
-| 前端来源（CORS） | `http://localhost:5173` | 环境变量 `CORS_ORIGIN` |
+| Base URL | `http://localhost:3000` | 环境变量 `PORT`（默认 3000，避开 Vite 的 3001） |
+| 前端来源（CORS） | `http://localhost:3001` | 环境变量 `CORS_ORIGIN` |
 | 数据库文件 | `apps/server/data/fundmanager.db` | 环境变量 `DB_PATH` |
 
 **启动**：
@@ -34,7 +34,7 @@ pnpm --filter @fundmanager/server start
 
 ### CORS
 
-开发时只允许 `http://localhost:5173`（Vite dev server）。生产由前端静态服务同源代理，
+开发时只允许 `http://localhost:3001`（Vite dev server）。生产由前端静态服务同源代理，
 **不开宽 CORS**。非白名单来源的预检请求不报错，但响应里 `Access-Control-Allow-Origin`
 仍是白名单的值，浏览器会自己拦下。
 
@@ -165,7 +165,7 @@ type Sourced<T> = {
 
 ## 四、每个端点
 
-> 下面所有 `$B` 都指 `http://localhost:5178`，`$LID` 指账本 ID。
+> 下面所有 `$B` 都指 `http://localhost:3000`，`$LID` 指账本 ID。
 
 ### 4.1 账本内的数据
 
