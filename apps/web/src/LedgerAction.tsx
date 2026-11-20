@@ -18,13 +18,21 @@ const kinds = [
   ['split', '份额折算'],
 ] as const
 
+/** 日期输入使用本地日历日，避免午夜附近转成 UTC 后偏移一天。 */
 const today = () => {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
+/**
+ * 使用原生模态抽屉录入流水或核对份额。
+ *
+ * @param props.onSaved 流水确认写入后刷新账本；对账结果留在抽屉里供核对。
+ */
 export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, onSaved }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const panel = useRef<HTMLElement>(null)
+  const closing = useRef(false)
   const [code, setCode] = useState(fundCode)
   const [date, setDate] = useState(today())
   const [kind, setKind] = useState<TransactionInput['kind']>('subscribe')
@@ -47,13 +55,35 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
     }
   }, [])
 
-  function close() {
-    if (!busy) onClose()
+  /** 保持模态状态直到退场结束，让焦点在抽屉隐藏后再回到触发控件。 */
+  function dismiss(afterClose: () => void) {
+    if (closing.current) return
+    closing.current = true
+    const element = panel.current
+    if (!element || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      afterClose()
+      return
+    }
+    dialog.current?.setAttribute('data-closing', '')
+    const exit = element.animate(
+      [
+        { transform: 'translateX(0)', opacity: 1 },
+        { transform: 'translateX(36px)', opacity: 0 },
+      ],
+      { duration: 160, easing: 'ease-in', fill: 'forwards' },
+    )
+    void exit.finished.then(afterClose, afterClose)
   }
 
+  /** 手工关闭时保留正在提交的表单，以便展示失败原因。 */
+  function close() {
+    if (!busy) dismiss(onClose)
+  }
+
+  /** 让后端执行账务校验，校验失败时保留填写值供用户修改。 */
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (busy) return
+    if (busy || closing.current) return
     setBusy(true)
     setError('')
     setResult(null)
@@ -66,6 +96,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
         })
         setResult(response.value)
       } else {
+        // 用户按常用的正数填写，出入账方向按 API 约定在提交时转换。
         const input: TransactionInput = {
           fundCode: code.trim(),
           date,
@@ -82,7 +113,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                 : {}),
         }
         await api.addTransaction(ledgerId, input)
-        onSaved()
+        dismiss(onSaved)
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '操作失败，请稍后重试。')
@@ -114,7 +145,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
       }}
     >
       <div className="ledger-action__scrim" onClick={close} aria-hidden="true" />
-      <section className="ledger-action__panel">
+      <section className="ledger-action__panel" ref={panel}>
         <header className="ledger-action__header">
           <div>
             <p className="ledger-action__eyebrow">账本操作</p>

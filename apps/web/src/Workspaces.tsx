@@ -7,6 +7,7 @@ const FundDetail = lazy(() => import('./FundDetail.tsx'))
 const currency = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' })
 type SortKey = 'marketValue' | 'unrealizedGain'
 
+/** 缺值显示原因，让用户能区分成本未知和实际盈亏为零。 */
 function Money({ data, signed }: { data: Sourced<number>; signed?: boolean }) {
   const value = data.value
   if (value === null) {
@@ -30,15 +31,18 @@ function Money({ data, signed }: { data: Sourced<number>; signed?: boolean }) {
   )
 }
 
+/** 窄屏下详情排在列表之后，把键盘焦点和视口一起移到详情。 */
 function scrollToDetail() {
   if (!window.matchMedia('(max-width: 920px)').matches) return
   requestAnimationFrame(() => {
     const detail = document.getElementById('fund-detail')
-    detail?.focus()
-    detail?.scrollIntoView({ block: 'start' })
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    detail?.focus({ preventScroll: true })
+    detail?.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'instant' : 'smooth' })
   })
 }
 
+/** 未知值始终排在末尾，升序时也不能把未知当作最小金额。 */
 function sortPositions(positions: Position[], key: SortKey, descending: boolean) {
   return [...positions].sort((a, b) => {
     const left = a[key].value
@@ -49,6 +53,7 @@ function sortPositions(positions: Position[], key: SortKey, descending: boolean)
   })
 }
 
+/** 组合和基金查询共用详情，只在账本内提供份额核对。 */
 function FundPanel({
   code,
   name,
@@ -93,6 +98,11 @@ function FundPanel({
   )
 }
 
+/**
+ * 展示指定账本的持仓与数据可信度，选中基金联动详情。
+ *
+ * @param props.ledgerId 当前账本标识，用于隔离持仓请求与缓存。
+ */
 export function Portfolio({
   ledgerId,
   onSearch,
@@ -117,6 +127,7 @@ export function Portfolio({
   const closed = positions.filter((position) => position.shares === 0)
   const visible = sortPositions(showClosed ? positions : held, sort.field, sort.desc)
   const active = visible.find((position) => position.fundCode === selected) ?? visible[0]
+  // 基金名称沿用详情查询的缓存键，持仓表和详情不会为同一只基金各取一次档案。
   const fundNames = useQueries({
     queries: visible.map(({ fundCode }) => ({
       queryKey: ['fund-info', fundCode],
@@ -135,10 +146,12 @@ export function Portfolio({
   )
   const hasStale = affected.some(({ marketValue }) => marketValue.stale)
 
+  /** 换列时默认让金额最大的基金排在前面。 */
   function changeSort(field: SortKey) {
     setSort((prev) => ({ field, desc: prev.field === field ? !prev.desc : true }))
   }
 
+  /** 通过 aria-sort 把实际排序状态同步给辅助工具。 */
   function sortHeading(field: SortKey, label: string) {
     return (
       <th
@@ -296,6 +309,11 @@ export function Portfolio({
   )
 }
 
+/**
+ * 按公开基金元数据查询，并将选中代码传给流水入口。
+ *
+ * @param props.onRecord 从详情预填基金代码，新建账本的路径由调用方负责。
+ */
 export function FundSearch({
   ledgerId,
   onRecord,

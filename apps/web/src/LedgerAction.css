@@ -17,6 +17,13 @@
 }
 .ledger-action::backdrop {
   background: rgb(13 17 25 / 42%);
+  transition: background-color 160ms ease-out;
+}
+.ledger-action[data-closing]::backdrop {
+  background: transparent;
+}
+.ledger-action[data-closing] .ledger-action__panel {
+  pointer-events: none;
 }
 .ledger-action__scrim {
   position: fixed;
@@ -168,7 +175,7 @@
 }
 .ledger-action__primary {
   border: 1px solid var(--accent);
-  color: white;
+  color: var(--on-accent);
   background: var(--accent);
 }
 .ledger-action__footer button:disabled {
@@ -184,6 +191,9 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .ledger-action::backdrop {
+    transition: none;
+  }
   .ledger-action__panel {
     animation: none;
   }

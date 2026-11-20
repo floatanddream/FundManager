@@ -36,6 +36,9 @@
   font-size: 13px;
   font-weight: 580;
   white-space: nowrap;
+  transition:
+    background-color 150ms ease-out,
+    color 150ms ease-out;
 }
 
 .fd-segments button[aria-pressed='true'] {
@@ -48,6 +51,29 @@
   height: 274px;
   width: 100%;
   margin-top: 10px;
+}
+
+/* 用淡入提示净值口径或区间已变更，图形本身保持实际数据点。 */
+.fund-detail-chart {
+  animation: nav-reveal 200ms ease-out;
+}
+
+@keyframes nav-reveal {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fund-detail-chart {
+    animation: none;
+  }
+  .fd-segments button {
+    transition: none;
+  }
 }
 .fd-state {
   display: flex;

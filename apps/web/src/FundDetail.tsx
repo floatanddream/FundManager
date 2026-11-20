@@ -24,6 +24,7 @@ const ranges = [
   [12, '1年'],
 ] as const
 
+/** 用同一组净值点绘图和生成无障碍摘要，避免读屏信息与图形不一致。 */
 function Chart({ points, label }: { points: NavPoint[]; label: string }) {
   const host = useRef<HTMLDivElement>(null)
 
@@ -31,8 +32,7 @@ function Chart({ points, label }: { points: NavPoint[]; label: string }) {
     const element = host.current
     if (!element) return
     const chart = echarts.init(element)
-    const theme = window.matchMedia('(prefers-color-scheme: dark)')
-
+    /** 从页面主题取颜色，确保手动切换时画布能跟随界面。 */
     function renderChart() {
       if (!element) return
       const styles = getComputedStyle(element)
@@ -84,12 +84,17 @@ function Chart({ points, label }: { points: NavPoint[]; label: string }) {
     }
 
     renderChart()
-    const observer = new ResizeObserver(() => chart.resize())
-    observer.observe(element)
-    theme.addEventListener('change', renderChart)
+    const sizeObserver = new ResizeObserver(() => chart.resize())
+    sizeObserver.observe(element)
+    // Canvas 中的颜色已经绘制完成，CSS 主题切换后必须重新配置图表。
+    const themeObserver = new MutationObserver(renderChart)
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    })
     return () => {
-      theme.removeEventListener('change', renderChart)
-      observer.disconnect()
+      themeObserver.disconnect()
+      sizeObserver.disconnect()
       chart.dispose()
     }
   }, [label, points])
@@ -106,6 +111,7 @@ function Chart({ points, label }: { points: NavPoint[]; label: string }) {
   )
 }
 
+/** 在数字旁保留数据时点与降级说明，展开后可追溯来源。 */
 function DataSource({ data }: { data?: Sourced<unknown> }) {
   if (!data) return null
   return (
@@ -123,6 +129,7 @@ function DataSource({ data }: { data?: Sourced<unknown> }) {
   )
 }
 
+/** 分别呈现零值、缺值和请求失败，避免把未知收益显示成零。 */
 function Metric({
   label,
   data,
@@ -166,6 +173,11 @@ function startOfRange(date: string, months: number) {
   return start.toISOString().slice(0, 10)
 }
 
+/**
+ * 查看基金净值和风险，账本内的基金另显示个人 XIRR。
+ *
+ * @param props.ledgerId 省略时只查询公开市场数据。
+ */
 export default function FundDetail({ fundCode, name, ledgerId }: Props) {
   const [adjusted, setAdjusted] = useState(true)
   const [range, setRange] = useState<(typeof ranges)[number][0]>(3)
@@ -196,6 +208,7 @@ export default function FundDetail({ fundCode, name, ledgerId }: Props) {
       : nav.data?.nav.value?.rows.map((row) => row.nav)
     if (!rows?.length) return []
     const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date))
+    // 从最后一个净值日往前取区间，停更或沿用缓存时图仍显示对应的历史范围。
     const start = startOfRange(sorted.at(-1)!.date, range)
     return sorted.filter((point) => point.date >= start)
   }, [adjusted, nav.data, range])
@@ -243,7 +256,7 @@ export default function FundDetail({ fundCode, name, ledgerId }: Props) {
           </button>
         </div>
       ) : points.length ? (
-        <Chart points={points} label={label} />
+        <Chart key={`${label}/${range}`} points={points} label={label} />
       ) : (
         <div className="fd-state">
           <p>{series?.reason ?? '该区间暂无净值数据。'}</p>
