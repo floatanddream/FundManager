@@ -6,6 +6,7 @@ import { toHttpError } from './errors.ts'
 import { DEFAULT_CORS_ORIGIN } from './env.ts'
 import { createLedgerRepository } from './repository/ledgerRepository.ts'
 import { createReconcileRepository } from './repository/reconcileRepository.ts'
+import { createSubscriptionRepository } from './repository/subscriptionRepository.ts'
 import { createTransactionRepository } from './repository/transactionRepository.ts'
 import { registerLedgerRoutes } from './routes/ledgers.ts'
 import { registerMarketFundRoutes } from './routes/marketFunds.ts'
@@ -14,6 +15,7 @@ import { registerPortfolioRoutes } from './routes/portfolio.ts'
 import { registerPositionRoutes } from './routes/positions.ts'
 import { registerReturnRoutes } from './routes/returns.ts'
 import { registerTransactionRoutes } from './routes/transactions.ts'
+import { registerSubscriptionRoutes } from './routes/subscriptions.ts'
 
 export type AppDeps = {
   readonly db: AppDatabase
@@ -65,6 +67,12 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     transactionRepository,
     ledgerRepository,
     reconcileRepository: createReconcileRepository(deps.db),
+  })
+  registerSubscriptionRoutes(app, {
+    dataSource: deps.dataSource,
+    ledgerRepository,
+    transactionRepository,
+    subscriptionRepository: createSubscriptionRepository(deps.db),
   })
   return app
 }

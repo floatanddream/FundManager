@@ -45,6 +45,16 @@ export const transaction = sqliteTable('transaction', {
   createdAt: text('createdAt').notNull(),
 })
 
+/** 草稿与最终流水共用 ID。保留下单日，待确认状态由是否已有流水决定。 */
+export const subscriptionDraft = sqliteTable('subscription_draft', {
+  id: text('id').primaryKey(),
+  ledgerId: text('ledgerId').notNull(),
+  fundCode: text('fundCode').notNull(),
+  orderDate: text('orderDate').notNull(),
+  amount: real('amount').notNull(),
+  createdAt: text('createdAt').notNull(),
+})
+
 export const reconcile = sqliteTable('reconcile', {
   id: text('id').primaryKey(),
   ledgerId: text('ledgerId').notNull(),

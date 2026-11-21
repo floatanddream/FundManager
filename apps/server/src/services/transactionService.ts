@@ -86,10 +86,20 @@ export async function addTransaction(
     throw new TypeError(`账本 ${ledgerId} 不存在`)
   }
 
-  deps.transactionRepository.addAtomically(transaction, (existing) => {
-    // 试算到历史最晚日期，确保补录不破坏后续推导；所有竞争写入均已被 SQLite 写锁串行化。
-    const asOf = existing.reduce((latest, t) => (t.date > latest ? t.date : latest), input.date)
-    derivePosition(existing, ledgerId, input.fundCode, asOf)
-  })
+  deps.transactionRepository.addAtomically(transaction, (existing) =>
+    validateTransactionHistory(existing, transaction),
+  )
   return fromLedger(transaction, input.date)
+}
+
+/** 从补录日期试算到历史末尾，保证新流水也不会破坏后续推导。 */
+export function validateTransactionHistory(
+  history: LedgerTransaction[],
+  transaction: LedgerTransaction,
+): void {
+  const asOf = history.reduce(
+    (latest, row) => (row.date > latest ? row.date : latest),
+    transaction.date,
+  )
+  derivePosition(history, transaction.ledgerId, transaction.fundCode, asOf)
 }

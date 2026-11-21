@@ -24,6 +24,7 @@ export type { RollingReturnStats } from './risk/rolling.ts'
 export { correlationMatrix } from './risk/correlation.ts'
 export type { CorrelationResult } from './risk/correlation.ts'
 export { compositeAdjustedSeries } from './risk/portfolio.ts'
+export { subscriptionShares } from './ledger/subscription.ts'
 
 export {
   calculateDailyGain,

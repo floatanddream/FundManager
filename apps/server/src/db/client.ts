@@ -51,6 +51,14 @@ const ddl = [
     "note" TEXT,
     "createdAt" TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS "subscription_draft" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "ledgerId" TEXT NOT NULL,
+    "fundCode" TEXT NOT NULL,
+    "orderDate" TEXT NOT NULL,
+    "amount" REAL NOT NULL,
+    "createdAt" TEXT NOT NULL
+  )`,
 ]
 
 /** Drizzle 实例，表定义来自 `schema.ts`（`db.query.ledger` 等可用） */

@@ -174,6 +174,9 @@ type Sourced<T> = {
 | GET | `/api/ledgers` |
 | POST | `/api/ledgers` |
 | POST | `/api/ledgers/:ledgerId/transactions` |
+| GET、POST | `/api/ledgers/:ledgerId/subscriptions` |
+| POST | `/api/ledgers/:ledgerId/subscriptions/:id/quote` |
+| POST | `/api/ledgers/:ledgerId/subscriptions/:id/confirm` |
 | GET | `/api/ledgers/:ledgerId/positions` |
 | GET | `/api/ledgers/:ledgerId/overview` |
 | GET | `/api/ledgers/:ledgerId/positions/:fundCode` |
@@ -335,6 +338,14 @@ curl -s -X POST "$B/api/ledgers/$LID/transactions" \
 | 请求体不是对象 | `请求体必须是一个 JSON 对象` |
 
 ---
+
+#### `/api/ledgers/:ledgerId/subscriptions` — 金额申购
+
+`POST` 接受 `{ fundCode, orderDate, amount }`。`amount` 是含申购费的人民币总额，必须为正。返回 HTTP 201 和待确认记录 `{ id, fundCode, orderDate, amount }`。`GET` 返回该账本下的待确认记录数组，可用于关掉页面后继续确认。这组接口返回普通 JSON，待确认记录不计入持仓、成本或收益。
+
+`POST /api/ledgers/:ledgerId/subscriptions/:id/quote` 接受 `{ navDate, fee }`。`navDate` 是平台使用的净值日，`fee` 是实际申购费，无费用时传 `0`。返回 `{ shares, nav, navDate, reason }`。只采用该日确认单位净值。净值暂不可用时 `shares` 和 `nav` 为空，并附原因，待确认记录可继续重试。
+
+`POST /api/ledgers/:ledgerId/subscriptions/:id/confirm` 接受 `{ navDate, fee?, shares?, sequence? }`。提供回单 `shares` 时按实际份额入账，否则必须提供实际费用，由后端重新换算。同日有多笔时，使用现有流水的顺序号规则。成功返回 `{ id, fundCode, date, sharesDelta, status }`，其中 `date` 为入账的净值日，`status` 为 `confirmed`。重复确认同一条记录返回原结果。未知账本或不属于该账本的记录返回 HTTP 404。
 
 #### GET `/api/ledgers/:ledgerId/overview` — 基金资产与当日收益
 
@@ -1356,3 +1367,7 @@ curl -s "$B/api/funds/000001/risk"
 | 14 | GET | `/api/funds/:fundCode/risk` | 市场 |
 | 15 | GET | `/api/ledgers/:ledgerId/overview` | 账本 |
 | 16 | GET | `/api/funds/:fundCode/directions` | 市场 |
+| 17 | GET | `/api/ledgers/:ledgerId/subscriptions` | 账本 |
+| 18 | POST | `/api/ledgers/:ledgerId/subscriptions` | 账本 |
+| 19 | POST | `/api/ledgers/:ledgerId/subscriptions/:id/quote` | 账本 |
+| 20 | POST | `/api/ledgers/:ledgerId/subscriptions/:id/confirm` | 账本 |
