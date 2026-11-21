@@ -24,3 +24,12 @@ export type { RollingReturnStats } from './risk/rolling.ts'
 export { correlationMatrix } from './risk/correlation.ts'
 export type { CorrelationResult } from './risk/correlation.ts'
 export { compositeAdjustedSeries } from './risk/portfolio.ts'
+
+export {
+  calculateDailyGain,
+  calculateHoldingGain,
+  calculateHoldingGainRate,
+  matchesDailyGainEvents,
+  sumKnownAmounts,
+} from './ledger/dailyGain.ts'
+export type { DailyGainInput } from './ledger/dailyGain.ts'
