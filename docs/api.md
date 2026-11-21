@@ -175,6 +175,7 @@ type Sourced<T> = {
 | POST | `/api/ledgers` |
 | POST | `/api/ledgers/:ledgerId/transactions` |
 | GET | `/api/ledgers/:ledgerId/positions` |
+| GET | `/api/ledgers/:ledgerId/overview` |
 | GET | `/api/ledgers/:ledgerId/positions/:fundCode` |
 | GET | `/api/ledgers/:ledgerId/funds/:fundCode/return` |
 | GET | `/api/ledgers/:ledgerId/portfolio/risk` |
@@ -334,6 +335,21 @@ curl -s -X POST "$B/api/ledgers/$LID/transactions" \
 | 请求体不是对象 | `请求体必须是一个 JSON 对象` |
 
 ---
+
+#### GET `/api/ledgers/:ledgerId/overview` — 基金资产与当日收益
+
+返回信封覆盖账本内的基金资产与收益。`value` 包含：
+
+| 字段 | 含义 |
+| --- | --- |
+| `valuationDate`、`previousDate` | 本次统一采用的两个确认净值日，缺少日期时为 `null` |
+| `marketValue`、`dailyGain` | 总市值、当日收益，单位为人民币元，各自携带来源与异常状态 |
+| `marketValueCoverage`、`dailyGainCoverage` | 对应指标的 `included`（已计入只数）与 `total`（应计入只数） |
+| `positions` | 持仓记录，沿用持仓接口的字段结构，增加 `dailyGain` 和 `holdingGainRate`。收益率为小数 |
+
+所有基金的当日收益都使用同一个净值区间。计算时扣除申购等外部资金变动的影响，区间内全赎的基金也参与汇总。缺少对应日期的确认净值、分红或折算仍待核对时，该基金的收益为空。部分基金不可计算时，总额仅含已覆盖部分。查询使用当前月及上月的净值，全清仓时以最近赎回日期为准。
+
+空账本的市值为 `0`，当日收益为 `null`。不存在的 `ledgerId` 返回 HTTP 404。
 
 #### GET `/api/ledgers/:ledgerId/positions` — 全部持仓
 
@@ -770,6 +786,7 @@ curl -s "$B/api/ledgers/$LID/reconcile/last?fundCode=000001"
 | GET | `/api/funds/:fundCode` |
 | GET | `/api/funds/:fundCode/nav?startDate=&endDate=` |
 | GET | `/api/funds/:fundCode/risk` |
+| GET | `/api/funds/:fundCode/directions` |
 
 > 路由注册顺序有讲究：静态段 `/api/funds/categories` 在参数段 `/api/funds/:fundCode` 之前，
 > 否则 `categories` 会被当成基金代码。
@@ -907,6 +924,12 @@ curl -s "$B/api/funds/000001"
 500。详见「常见坑」。
 
 ---
+
+#### GET `/api/funds/:fundCode/directions` — 基金投资方向
+
+信封的 `value` 为标签数组。每个标签包含 `label`、`kind`、`reportDate` 和 `reference`。主题指数及宽基标签使用基金档案中的明确跟踪标的，产品类别使用档案分类，披露行业标签取最近一期公开行业配置，附实际报告期。无可核验方向时返回空数组，取数失败时返回 `null` 与原因。使用缓存时按信封的 `stale` 字段提示。
+
+首批跟踪标的映射参考 [中证半导体行业精选指数编制方案](https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/indices/detail/files/zh_CN/932066_Index_Methodology_cn.pdf)、[中证人工智能主题指数编制方案](https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/indices/detail/files/zh_CN/20231208175424-930713_Index_Methodology_cn.pdf) 和 [上证科创板50成份指数基本信息](https://www.sse.com.cn/market/sseindex/indexlist/basic/index.shtml?COMPANY_CODE=000688&INDEX_Code=000688&type=1)。
 
 #### GET `/api/funds/:fundCode/nav` — 净值历史（两个口径）
 
@@ -1240,8 +1263,9 @@ curl -s "$B/api/funds/000001/risk"
 而**持仓列表**为空时是 `value: []`——列表的「没有」就是空列表，组合的「没有」是「算不出来」，
 两者形状不同是有意的。
 
-### 6. 未知的 `ledgerId` 不报错
+### 6. 不同账本接口对未知 `ledgerId` 的处理
 
+`GET /api/ledgers/不存在/overview` → 404；
 `GET /api/ledgers/不存在/positions` → 200 + `value: []`；
 `POST /api/ledgers/不存在/transactions` → **201，并真的写进库**（`ledgerId` 没有外键约束）。
 
@@ -1330,3 +1354,5 @@ curl -s "$B/api/funds/000001/risk"
 | 12 | GET | `/api/funds/:fundCode` | 市场 |
 | 13 | GET | `/api/funds/:fundCode/nav` | 市场 |
 | 14 | GET | `/api/funds/:fundCode/risk` | 市场 |
+| 15 | GET | `/api/ledgers/:ledgerId/overview` | 账本 |
+| 16 | GET | `/api/funds/:fundCode/directions` | 市场 |

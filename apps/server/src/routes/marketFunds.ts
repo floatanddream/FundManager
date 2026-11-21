@@ -9,6 +9,7 @@ import { assertDate } from '@fundmanager/shared'
 import type { FundDataSource } from '@fundmanager/datasource'
 import { getNav, type NavRange } from '../services/navService.ts'
 import { getFundRisk } from '../services/riskService.ts'
+import { getFundDirections } from '../services/fundDirectionService.ts'
 import {
   getFundProfile,
   listCategories,
@@ -106,6 +107,10 @@ export function registerMarketFundRoutes(
   // 单基金风险是**市场数据**：描述这只基金本身，与是否持有无关，路径不带 ledgerId
   app.get<{ Params: { fundCode: string } }>('/api/funds/:fundCode/risk', async (request) =>
     getFundRisk(deps, assertFundCode(request.params.fundCode)),
+  )
+
+  app.get<{ Params: { fundCode: string } }>('/api/funds/:fundCode/directions', async (request) =>
+    getFundDirections(deps, assertFundCode(request.params.fundCode)),
   )
 
   app.get<{ Params: { fundCode: string } }>('/api/funds/:fundCode', async (request) => {
