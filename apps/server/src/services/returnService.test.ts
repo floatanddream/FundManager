@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import type { LedgerTransaction } from '@fundmanager/core'
 import { navConfirmed } from '@fundmanager/shared'
+import { DataSourceError } from '@fundmanager/datasource'
 import type { Fetched, FundDataSource, NavHistory, NavHistoryRow } from '@fundmanager/datasource'
 import { buildApp } from '../app.ts'
 import { openDatabase } from '../db/client.ts'
@@ -118,6 +119,33 @@ it('净值降级时 stale / loss 穿透；dataAsOf 是实际用到的那一行�
     true,
   ])
   expect([r!.value!.endValue.dataAsOf, r!.value!.endNav.value]).toEqual(['2025-06-30', 1.1])
+})
+
+it('有晚于末笔净值的申购时，按净值日的持仓和现金流计算 XIRR', async () => {
+  const txs = [
+    tx({ date: '2024-01-01', sharesDelta: 100, amount: -100 }),
+    tx({ date: '2025-02-01', sharesDelta: 100, amount: -110 }),
+  ]
+  const result = await getFundReturn(deps(txs, [row('2024-12-31', 1.1, 1.1)]), 'L1', '000001', {
+    asOf: '2025-02-01',
+  })
+  expect(result?.value).toMatchObject({ asOf: '2024-12-31', shares: 100 })
+  expect(result?.value?.xirr.value).toBeCloseTo(0.1)
+  expect(result?.value?.cashFlows.at(-1)?.date).toBe('2024-12-31')
+  expect(result?.value?.cashFlows.at(-1)?.amount).toBeCloseTo(110)
+})
+
+it('清仓后外部净值不可用也能从已确认流水计算 XIRR', async () => {
+  const d = deps([
+    tx({ date: '2024-01-01', sharesDelta: 100, amount: -100 }),
+    tx({ date: '2024-12-31', kind: 'redeem', sharesDelta: -100, amount: 110 }),
+  ])
+  d.dataSource.navHistory = async () => {
+    throw new DataSourceError('测试数据源不可用')
+  }
+  const result = await getFundReturn(d, 'L1', '000001', { asOf: '2025-02-01' })
+  expect(result?.value).toMatchObject({ asOf: '2024-12-31', endValue: { value: 0 } })
+  expect(result?.value?.xirr.value).toBeCloseTo(0.1)
 })
 
 // 路由层：真库（`:memory:`）+ 假数据源

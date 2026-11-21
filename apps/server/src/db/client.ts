@@ -54,9 +54,32 @@ const ddl = [
 ]
 
 /** Drizzle 实例，表定义来自 `schema.ts`（`db.query.ledger` 等可用） */
-export type AppDatabase = ReturnType<typeof createDatabase>
+export type AppDatabase = ReturnType<typeof drizzle<typeof schema>> & {
+  readonly atomic: <T>(work: (sqlite: DatabaseSync) => T) => T
+}
 
-const createDatabase = (sqlite: DatabaseSync) => drizzle(createSqliteProxy(sqlite), { schema })
+const createDatabase = (sqlite: DatabaseSync): AppDatabase =>
+  Object.assign(drizzle(createSqliteProxy(sqlite), { schema }), {
+    atomic: <T>(work: (sqlite: DatabaseSync) => T): T => {
+      // 读取历史前获取写锁，防止两个连接各自基于相同的旧份额通过试算。
+      sqlite.exec('BEGIN IMMEDIATE')
+      try {
+        const value = work(sqlite)
+        if (
+          value !== null &&
+          (typeof value === 'object' || typeof value === 'function') &&
+          'then' in value
+        ) {
+          throw new TypeError('SQLite 原子操作的回调必须同步执行')
+        }
+        sqlite.exec('COMMIT')
+        return value
+      } catch (error) {
+        sqlite.exec('ROLLBACK')
+        throw error
+      }
+    },
+  })
 
 /**
  * 打开本地库并保证各表存在。
@@ -75,6 +98,8 @@ export const openDatabase = (location = ':memory:'): { db: AppDatabase; sqlite: 
     mkdirSync(dirname(location), { recursive: true })
   }
   const sqlite = new DatabaseSync(location)
+  // 同一数据库的另一个写入尚未结束时，让 SQLite 等待锁释放。
+  sqlite.exec('PRAGMA busy_timeout = 5000')
   for (const statement of ddl) sqlite.exec(statement)
   return { db: createDatabase(sqlite), sqlite }
 }

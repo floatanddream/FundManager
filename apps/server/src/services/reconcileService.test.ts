@@ -64,6 +64,16 @@ it('对账绝不改流水：全量重推只回报结论', async () => {
   expect(await transactionRepository.listByFund('L1', '000001')).toHaveLength(1)
 })
 
+it('回看历史对账时只显示截止日以前可见的匹配记录', async () => {
+  const { deps } = await fresh()
+  const input = { fundCode: '000001', claimedShares: 1000 }
+  await reconcileFund(deps, 'L1', { ...input, asOf: '2026-01-10' })
+  await reconcileFund(deps, 'L1', { ...input, asOf: '2026-01-20' })
+  const earlier = await reconcileFund(deps, 'L1', { ...input, asOf: '2026-01-15' })
+  expect(earlier.value?.lastMatchedOn).toBe('2026-01-10')
+  expect((await getLastReconcile(deps, 'L1', '000001')).value?.lastMatchedOn).toBe('2026-01-20')
+})
+
 it('账本里没有这只基金的流水：推出来是 0 份，照常给结论而不是报错', async () => {
   const { deps } = await fresh()
   const r = await reconcileFund(deps, 'L1', { fundCode: '000002', claimedShares: 0 })

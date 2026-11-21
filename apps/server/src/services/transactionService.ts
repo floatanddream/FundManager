@@ -16,7 +16,7 @@ import type { createTransactionRepository } from '../repository/transactionRepos
 export type TransactionDeps = {
   readonly transactionRepository: Pick<
     ReturnType<typeof createTransactionRepository>,
-    'add' | 'listByFund'
+    'addAtomically'
   >
   /** 用来确认账本真实存在——见 `addTransaction` 的第一道检查 */
   readonly ledgerRepository: Pick<ReturnType<typeof createLedgerRepository>, 'get'>
@@ -86,13 +86,10 @@ export async function addTransaction(
     throw new TypeError(`账本 ${ledgerId} 不存在`)
   }
 
-  const existing = await deps.transactionRepository.listByFund(ledgerId, input.fundCode)
-
-  // 截止日取新流水与已有流水的最晚一天：整段历史都重推一遍。新流水若是补录的更早
-  // 日期，之后已有的流水也要跟着受检，只推到新流水当天会把后面的问题漏掉
-  const asOf = existing.reduce((latest, t) => (t.date > latest ? t.date : latest), input.date)
-  derivePosition([...existing, transaction], ledgerId, input.fundCode, asOf)
-
-  await deps.transactionRepository.add(transaction)
+  deps.transactionRepository.addAtomically(transaction, (existing) => {
+    // 试算到历史最晚日期，确保补录不破坏后续推导；所有竞争写入均已被 SQLite 写锁串行化。
+    const asOf = existing.reduce((latest, t) => (t.date > latest ? t.date : latest), input.date)
+    derivePosition(existing, ledgerId, input.fundCode, asOf)
+  })
   return fromLedger(transaction, input.date)
 }

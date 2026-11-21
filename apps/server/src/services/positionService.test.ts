@@ -107,6 +107,19 @@ it('净值降级时 stale / loss 穿透到持仓，不被吞掉', async () => {
   expect([p!.marketValue.stale, p!.marketValue.loss]).toEqual([true, '丢失分红/拆分事件字段'])
 })
 
+it('净值时点是实际使用的历史净值日，且旧净值不用于新发生的申购', async () => {
+  const newerBuy = tx({ date: '2026-01-03', sharesDelta: 100, amount: -150 })
+  const d = deps([buy, newerBuy])
+  const historic = await getFundPosition(d, 'L1', '000001', { asOf: '2026-01-01' })
+  expect(historic?.value?.marketValue.dataAsOf).toBe('2026-01-01')
+  const current = await getFundPosition(d, 'L1', '000001', { asOf: '2026-01-03' })
+  expect(current?.value).toMatchObject({
+    shares: 200,
+    marketValue: { value: null },
+    unrealizedGain: { value: null },
+  })
+})
+
 // 路由层：真库（`:memory:`）+ 假数据源，断言信封、404 与 400
 const appWith = async (txs: readonly LedgerTransaction[]) => {
   const { db } = openDatabase()

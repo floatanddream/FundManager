@@ -20,7 +20,8 @@ import { DataSourceError } from '../http/errors.ts'
 import { fetchWithFallback } from './fetchWithFallback.ts'
 import type { Fetched, NavHistory, NavHistoryRow } from './types.ts'
 
-const TTL_MS = 24 * 60 * 60 * 1000
+// 净值在收盘后公布（约 19:00–23:00）；30 分钟 TTL 可避免夜间长时间命中前一日净值。
+const TTL_MS = 30 * 60 * 1000
 const PAGE_SIZE = 20
 /**
  * 翻页上限。实测每页 20 条、每年约 250 个交易日，200 页（4000 条）约覆盖 16 年。
@@ -48,6 +49,7 @@ export function navHistory(
     // 区间**必须**进键：否则先取窄区间、再在同 TTL 内取全量会命中前者，静默拿到被截断的历史
     key: `nav:${fundCode}:${opts.startDate ?? ''}:${opts.endDate ?? ''}`,
     ttlMs: TTL_MS,
+    monotonicDataAsOf: true,
     cache,
     sources: [
       {

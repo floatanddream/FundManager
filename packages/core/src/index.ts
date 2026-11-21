@@ -4,6 +4,7 @@ export { MultipleRootsError, npv, xirr } from './returns/xirr.ts'
 export { timeWeightedReturn } from './returns/twr.ts'
 export type { ValuationPoint } from './returns/twr.ts'
 export { derivePosition } from './ledger/position.ts'
+export { positionChangedAfter, positionMarketValue } from './ledger/marketValue.ts'
 export { toCashFlows } from './ledger/cashflow.ts'
 export type {
   LedgerPosition,

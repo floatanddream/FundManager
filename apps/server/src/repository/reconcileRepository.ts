@@ -1,6 +1,6 @@
 import type { ReconcileResult } from '@fundmanager/core'
 import { randomUUID } from 'node:crypto'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, lte } from 'drizzle-orm'
 import type { AppDatabase } from '../db/client.ts'
 import { reconcile } from '../db/schema.ts'
 
@@ -36,9 +36,14 @@ export const createReconcileRepository = (db: AppDatabase) => ({
   /**
    * 最近一条 `matched: true` 的截止日；从没对得上过则为 `null`。
    *
+   * @param through 回看历史对账时的截止日，省略表示查询全部记录。
    * @remarks 对不上的记录不参与排序——它们不能当作「账是对的」的证据。
    */
-  async lastMatchedAt(ledgerId: string, fundCode: string): Promise<string | null> {
+  async lastMatchedAt(
+    ledgerId: string,
+    fundCode: string,
+    through?: string,
+  ): Promise<string | null> {
     const rows = await db
       .select({ asOf: reconcile.asOf })
       .from(reconcile)
@@ -47,6 +52,7 @@ export const createReconcileRepository = (db: AppDatabase) => ({
           eq(reconcile.ledgerId, ledgerId),
           eq(reconcile.fundCode, fundCode),
           eq(reconcile.matched, true),
+          through === undefined ? undefined : lte(reconcile.asOf, through),
         ),
       )
       .orderBy(desc(reconcile.asOf))

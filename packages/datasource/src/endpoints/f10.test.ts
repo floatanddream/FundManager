@@ -92,6 +92,21 @@ it('lsjz：FHFCBZ=106 识别为拆分折算，FHFCZ10 与 FHFCZ 同值', () => {
   })
 })
 
+it('lsjz：明确的折算码即使缺少描述和金额也保留事件', () => {
+  const payload = JSON.parse(fixture('api_fund_lsjz/510300-split.json')) as {
+    Data: { LSJZList: Array<Record<string, unknown>> }
+  }
+  payload.Data.LSJZList[0]!.FHFCZ = ''
+  payload.Data.LSJZList[0]!.FHFCZ10 = null
+  payload.Data.LSJZList[0]!.FHSP = ''
+  expect(parseLsjz(JSON.stringify(payload)).rows[0]?.event).toEqual({
+    kind: 'split',
+    perUnit: null,
+    per10Unit: null,
+    description: '',
+  })
+})
+
 it('lsjz：业务码非 0 抛 BusinessCodeError，不返回空集合', () => {
   expect(() => parseLsjz(noReferer())).toThrow(BusinessCodeError)
   expect(() => parseLsjz(noReferer())).toThrow('ErrCode:-999')

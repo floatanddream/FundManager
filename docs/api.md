@@ -425,7 +425,7 @@ curl -s "$B/api/ledgers/$LID/positions"
 
 - `shares` / `realizedGain`：**账本内生**，不带信封
 - `cost` / `costPerShare`：移动加权平均成本；没有买入记录时为 `null` + 原因
-- `marketValue`：**份额 × 最新未复权净值**（截止日当天及以前最近的一行）
+- `marketValue`：**份额 × 最新未复权确认净值**。若净值日之后还有持仓变动，返回 `null` 并说明在等新净值。已清仓时直接返回零。
 - `unrealizedGain`：`marketValue − cost`；两者任一 unknown 时为 `null`
 
 **错误**：无（未知的 `ledgerId` 返回空列表，不报错——见「常见坑」）。
@@ -507,7 +507,7 @@ curl -s "$B/api/ledgers/$LID/funds/000001/return"
 {
   "value": {
     "fundCode": "000001",
-    "asOf": "2026-11-20",
+    "asOf": "2026-11-19",
     "shares": 2400,
     "endNav": {
       "value": 0.967, "reason": null,
@@ -526,7 +526,7 @@ curl -s "$B/api/ledgers/$LID/funds/000001/return"
       "provenance": ["…（省略 1 个输入信封）"]
     },
     "xirr": {
-      "value": -0.014283926139094703, "reason": null,
+      "value": -0.014314651886761178, "reason": null,
       "source": "pingzhongdata/Data_netWorthTrend",
       "dataAsOf": "2026-11-19", "capturedAt": "2026-11-20T16:43:56+08:00",
       "stale": false,
@@ -536,7 +536,7 @@ curl -s "$B/api/ledgers/$LID/funds/000001/return"
     "cashFlows": [
       { "date": "2025-08-15", "amount": -2400 },
       { "date": "2025-09-19", "amount": 36.5 },
-      { "date": "2026-11-20", "amount": 2320.7999999999997 }
+      { "date": "2026-11-19", "amount": 2320.7999999999997 }
     ]
   },
   "reason": null,
@@ -553,8 +553,8 @@ curl -s "$B/api/ledgers/$LID/funds/000001/return"
 
 - `endNav` / `endValue`：**未复权**单位净值、净值 × 份额（真能赎回拿到的钱）
 - `xirr`：小数（`-0.0142` = -1.42%），**不是百分数**
-- `cashFlows`：纳入求解的现金流，同一天已合并，**末笔是期末市值**；`amount` 流向账本为正
-- 计算截止日是**今天（中国时区）**，截止日之后的流水不参与
+- `cashFlows`：纳入求解的现金流，流水部分按日合并。有持仓市值时，在末尾追加净值日的期末市值。流向账本的金额为正。
+- `asOf` 是实际计算截止日。有持仓时使用今天（中国时区）及以前最近的确认净值日，份额与流水也截到同一天。已清仓时只使用截至今天的确认流水，期末市值为零。
 
 `xirr.value` 为 null 是正常形态，`reason` 会说明：
 
@@ -571,7 +571,7 @@ curl -s "$B/api/ledgers/$LID/funds/000001/return"
 
 #### GET `/api/ledgers/:ledgerId/portfolio/risk` — 组合风险
 
-无参数。**市值加权**的相关性矩阵 + 组合回撤。
+无参数。返回基金两两相关性，以及按截止日市值权重计算的组合回撤。
 
 ```bash
 curl -s "$B/api/ledgers/$LID/portfolio/risk"
@@ -592,9 +592,10 @@ curl -s "$B/api/ledgers/$LID/portfolio/risk"
       "loss": "净值数值等价，但丢失分红/拆分事件字段（来自 pingzhongdata 走势）；复权时缺分红/拆分事件，只能按普通日处理，序列可能仍含假回撤",
       "provenance": ["…（省略 2 个输入信封）"]
     },
+    "correlationFundCodes": ["011609", "000001"],
     "maxDrawdown": {
       "value": 0.5363169746785923,
-      "reason": "复权净值不足两点，回撤无定义",
+      "reason": null,
       "source": "f10/lsjz；pingzhongdata/Data_netWorthTrend",
       "dataAsOf": "2026-11-19", "capturedAt": "2026-11-20T16:43:56+08:00",
       "stale": false,
@@ -603,7 +604,7 @@ curl -s "$B/api/ledgers/$LID/portfolio/risk"
     },
     "currentDrawdown": {
       "value": 0.4074868394176437,
-      "reason": "复权净值不足两点，回撤无定义",
+      "reason": null,
       "source": "f10/lsjz；pingzhongdata/Data_netWorthTrend",
       "dataAsOf": "2026-11-19", "capturedAt": "2026-11-20T16:43:56+08:00",
       "stale": false,
@@ -625,13 +626,12 @@ curl -s "$B/api/ledgers/$LID/portfolio/risk"
 }
 ```
 
-- `correlation.value` 是**与 `members` 同序**的方阵；不足两只基金或共同交易日不足时为 `null` + `reason`
+- `correlation.value` 的行列以 `correlationFundCodes` 为准；矩阵不可用时为 `null` 并带原因，基金代码顺序为空。
 - `maxDrawdown` / `currentDrawdown`：非负幅度，`0.536` 表示跌 53.6%
 - `weight`：市值占比 `[0, 1]`，`null` 表示该基金取不到最新净值、无法加权
-- `observations: 0` 表示该基金**没进组合指数**（取不到复权序列）
+- `observations: 0` 表示该基金未参与组合指标。排除原因体现在 `loss`，例如缺净值、持仓变动后仍在等新净值，或复权历史不足。
 
-**权重取截止日的市值，并在整段历史上保持不变。** 账本只存流水、不存每日持仓，历史权重
-无从还原。所以组合回撤是「**按今天的配置回看历史**」，不是真实账户的历史轨迹。
+**每一期都用截止日的市值权重加权收益，再对组合收益复利。** 缺权重或缺复权历史的基金不参与计算，其余基金的权重在计算时重新归一化，受影响指标和外层信封都显示覆盖损失。组合回撤按当前配置回看历史。
 
 **空账本 / 没有份额 > 0 的持仓**时返回：
 
@@ -718,8 +718,7 @@ curl -s -X POST "$B/api/ledgers/$LID/reconcile" \
 ```
 
 - `difference = derivedShares − claimedShares`；为正说明**流水推出来的份额多于平台**
-- `lastMatchedOn` 是**这次对账之前**上次对得上的日期（第一次对账为 `null`）。它**不是**
-  「最早从哪天开始对不上」——那个算不出来，见 `core/reconcile.ts` 的说明
+- `lastMatchedOn` 是本次对账之前已记录、且不晚于本次截止日的最后一个匹配日期。没有符合条件的记录时为 `null`。
 - 比较用容差而非 `===`（浮点累计与平台四舍五入）
 - 账本里没有这只基金的流水**也照常对账**：`derivedShares` 为 0、通常对不上。那是有效结论
 
@@ -1274,7 +1273,7 @@ curl -s "$B/api/funds/000001/risk"
 // 第二笔同一天 → 400「同一天有多笔流水，需要指定先后顺序」
 ```
 
-补上 `sequence` 才行。**同日顺序不能靠请求到达顺序**：同样的「申购 + 折算」换序会算出不同份额
+如果第一笔是唯一未编号的旧流水，补录第二笔时填 `1` 或更大，试算通过后会在同一个事务里把旧流水编号为 `0` 并保存新流水。**同日顺序不能靠请求到达顺序**：同样的「申购 + 折算」换序会算出不同份额
 （100 与 200），而数据库取出来的顺序本就不保证。`sequence` 从 0 起、同日不重复、跨日无需连续。
 
 ### 10. 浮点数没有四舍五入

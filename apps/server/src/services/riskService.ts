@@ -17,6 +17,8 @@ import {
   downsideDeviation,
   drawdownRecoveryDays,
   maxDrawdown,
+  positionChangedAfter,
+  positionMarketValue,
 } from '@fundmanager/core'
 import {
   DataSourceError,
@@ -59,8 +61,10 @@ export type PortfolioMember = {
 
 /** 组合风险画像 */
 export type PortfolioRisk = {
-  /** 与 `members` 同序的相关性矩阵；不足两只基金或观测不足时为 null */
+  /** 与 `correlationFundCodes` 同序的相关性矩阵；不足两只基金或观测不足时为 null */
   readonly correlation: Sourced<readonly (readonly number[])[] | null>
+  /** `correlation.value` 的行列对应基金代码顺序；矩阵为空时为空数组 */
+  readonly correlationFundCodes: readonly string[]
   /** 组合指数（**市值加权**）的最大回撤 */
   readonly maxDrawdown: RiskMetric
   /** 组合指数的当前回撤 */
@@ -203,7 +207,23 @@ async function navOrFailure(
   adjusted: Sourced<AdjustedNav[]>
 }> {
   try {
-    return await getNav(deps, fundCode)
+    return await getNav(
+      {
+        dataSource: {
+          async navHistory(code) {
+            // 与持仓共用全量缓存，避免日期一变就无法用旧缓存。先裁切再复权，未来行情不参与。
+            const history = await deps.dataSource.navHistory(code)
+            const rows = history.value.rows.filter((row) => row.nav.date <= asOf)
+            return {
+              ...history,
+              value: { ...history.value, rows },
+              dataAsOf: rows[0]?.nav.date ?? asOf,
+            }
+          },
+        },
+      },
+      fundCode,
+    )
   } catch (error) {
     if (!(error instanceof DataSourceError)) throw error
     const failed = navFetchFailure<RawNavHistory>(fundCode, asOf, error)
@@ -247,7 +267,11 @@ export async function getPortfolioRisk(
       const { nav, adjusted } = await navOrFailure(deps, fundCode, asOf)
       // 市值用**未复权**单位净值 × 份额——那是真能赎回拿到的钱（设计 §四.1）
       const latest = nav.value?.rows.find((row) => row.nav.date <= asOf) ?? null
-      const marketValue = latest === null ? null : shares * latest.nav.value
+      // 权重表示当前组合。净值日后发生交易的基金需等新净值，避免用历史配置代替当前配置。
+      const marketValue =
+        latest && !positionChangedAfter(all, ledgerId, fundCode, latest.nav.date, asOf)
+          ? positionMarketValue(shares, latest.nav)
+          : null
       return { fundCode, marketValue, adjusted }
     }),
   )
@@ -257,7 +281,13 @@ export async function getPortfolioRisk(
   const priced = funds.filter(
     (h): h is HeldFund & { marketValue: number } => h.marketValue !== null,
   )
-  if (priced.length === 0) return fromLedger(null, NO_MARKET_VALUE, asOf)
+  if (priced.length === 0) {
+    return fromDerived<PortfolioRisk>(
+      null,
+      NO_MARKET_VALUE,
+      funds.map((h) => h.adjusted),
+    )
+  }
 
   const totalValue = priced.reduce((sum, h) => sum + h.marketValue, 0)
   const weightOf = new Map(priced.map((h) => [h.fundCode, h.marketValue / totalValue]))
@@ -266,7 +296,7 @@ export async function getPortfolioRisk(
   // 只有拿到最新净值（有市值权重）且取到复权序列的基金能进组合指数与相关矩阵
   const usable = funds.filter(
     (h): h is HeldFund & { adjusted: Sourced<AdjustedNav[]> & { value: AdjustedNav[] } } =>
-      h.adjusted.value !== null && weightOf.has(h.fundCode),
+      h.adjusted.value !== null && h.adjusted.value.length >= 2 && weightOf.has(h.fundCode),
   )
   // 相关性的信封输入：全都没有可用序列时退回各基金的信封（reason 里已说明），
   // `fromDerived` 不接受空输入
@@ -281,7 +311,7 @@ export async function getPortfolioRisk(
           usableWeights,
         )
   // 合成序列的信封：输入是各基金的复权序列，stale / loss 与最早时点由此汇聚
-  const compositeInput =
+  const compositeInput: Sourced<unknown> =
     usable.length === 0
       ? fromLedger<number>(null, NO_COMMON_DATES, asOf)
       : fromDerived(
@@ -301,20 +331,34 @@ export async function getPortfolioRisk(
   // 只算一次：下面 value 与 reason 两处必须基于同一个数，各算一遍迟早漂
   const portfolioDrawdown = composite.length < 2 ? null : maxDrawdown(composite)
   const portfolioCurrent = composite.length < 2 ? null : currentDrawdown(composite)
+  const included = new Set(usable.map((h) => h.fundCode))
+  const excluded = funds.filter((h) => !included.has(h.fundCode)).map((h) => h.fundCode)
+  const coverageLoss =
+    excluded.length === 0 ? null : `以下基金口径不全，未计入组合：${excluded.join('、')}`
+  const withCoverageLoss = <T>(input: Sourced<T>): Sourced<T> =>
+    coverageLoss === null
+      ? input
+      : {
+          ...input,
+          loss: [input.loss, coverageLoss].filter((s): s is string => s !== null).join('；'),
+        }
   const risk: PortfolioRisk = {
-    correlation: fromDerived(
-      correlation?.matrix ?? null,
-      correlation === null ? correlationReason : null,
-      usableInputs,
+    correlation: withCoverageLoss(
+      fromDerived(
+        correlation?.matrix ?? null,
+        correlation === null ? correlationReason : null,
+        usableInputs,
+      ),
     ),
+    correlationFundCodes: correlation === null ? [] : [...included],
     // 合成序列一点都没有 = 没有共同交易日；只有一天 = 回撤无定义——两者原因不同
     maxDrawdown: metric(
-      compositeInput,
+      withCoverageLoss(compositeInput),
       portfolioDrawdown,
       reasonOnlyIfNull(portfolioDrawdown, composite.length === 0 ? NO_COMMON_DATES : NO_DRAWDOWN),
     ),
     currentDrawdown: metric(
-      compositeInput,
+      withCoverageLoss(compositeInput),
       portfolioCurrent,
       reasonOnlyIfNull(portfolioCurrent, composite.length === 0 ? NO_COMMON_DATES : NO_DRAWDOWN),
     ),
@@ -322,20 +366,9 @@ export async function getPortfolioRisk(
       fundCode: h.fundCode,
       marketValue: h.marketValue,
       weight: weightOf.get(h.fundCode) ?? null,
-      observations: h.adjusted.value?.length ?? 0,
+      observations: included.has(h.fundCode) ? (h.adjusted.value?.length ?? 0) : 0,
     })),
   }
 
-  const envelope = fromDerived<PortfolioRisk | null>(risk, null, inputs)
-  // 取不到复权净值或无最新净值的基金被排除在组合外：组合口径已不等于用户的完整持仓
-  const excluded = funds
-    .filter((h) => h.marketValue === null || h.adjusted.value === null)
-    .map((h) => h.fundCode)
-  if (excluded.length === 0) return envelope
-  return {
-    ...envelope,
-    loss: [envelope.loss, `以下基金口径不全，未计入组合：${excluded.join('、')}`]
-      .filter((s): s is string => s !== null)
-      .join('；'),
-  }
+  return withCoverageLoss(fromDerived(risk, null, inputs))
 }

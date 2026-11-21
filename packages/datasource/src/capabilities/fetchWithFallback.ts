@@ -10,7 +10,7 @@
  * 第 3 条是**唯一**允许用旧值的路径。解析失败（`ParseError`）、业务码失败（`BusinessCodeError`）、
  * 传输失败（`HttpError`）以及任何来源抛出的错误，都被视为该源失败并继续降级。
  */
-import type { CacheStore } from '../cache/cacheStore.ts'
+import type { CacheEntry, CacheStore } from '../cache/cacheStore.ts'
 import { BusinessCodeError, DataSourceError } from '../http/errors.ts'
 
 import type { Fetched } from './types.ts'
@@ -44,8 +44,41 @@ export type FetchWithFallbackSpec<T> = {
    * 仍能从值重算出 `loss`，不必把它塞进缓存记录。
    */
   readonly lossFor?: (value: T) => string | null
+  /** 当 dataAsOf 是业务时点且只允许前进时启用（目前仅净值历史）。 */
+  readonly monotonicDataAsOf?: boolean
   /** 注入当前时刻，仅为测试可确定；缺省用真实时钟 */
   readonly now?: () => Date
+}
+
+// 同一进程内按 cache store + key 串行比较/写入，防止较晚返回的旧响应覆盖新值。
+const cacheWriteTails = new WeakMap<CacheStore, Map<string, Promise<void>>>()
+async function setMonotonic<T>(
+  cache: CacheStore,
+  key: string,
+  entry: CacheEntry<T>,
+): Promise<boolean> {
+  let tails = cacheWriteTails.get(cache)
+  if (tails === undefined) {
+    tails = new Map()
+    cacheWriteTails.set(cache, tails)
+  }
+  const previous = tails.get(key) ?? Promise.resolve()
+  let release!: () => void
+  const current = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const tail = previous.then(() => current)
+  tails.set(key, tail)
+  await previous
+  try {
+    const existing = await cache.get<T>(key)
+    if (existing !== undefined && existing.dataAsOf > entry.dataAsOf) return false
+    await cache.set(key, entry)
+    return true
+  } finally {
+    release()
+    if (tails.get(key) === tail) tails.delete(key)
+  }
 }
 
 const CHINA_OFFSET_MS = 8 * 60 * 60 * 1000
@@ -76,7 +109,10 @@ export async function fetchWithFallback<T>(spec: FetchWithFallbackSpec<T>): Prom
   // 1. TTL 未过期：直接用缓存，不算降级
   if (useCache) {
     const hit = await spec.cache!.get<T>(spec.key)
-    if (hit !== undefined && hit.expiresAt > now.getTime()) {
+    const effectiveExpiry = spec.monotonicDataAsOf
+      ? Math.min(hit?.expiresAt ?? 0, Date.parse(hit?.capturedAt ?? '') + spec.ttlMs)
+      : (hit?.expiresAt ?? 0)
+    if (hit !== undefined && effectiveExpiry > now.getTime()) {
       return {
         value: hit.value,
         source: hit.source,
@@ -90,18 +126,42 @@ export async function fetchWithFallback<T>(spec: FetchWithFallbackSpec<T>): Prom
 
   // 2. 依次降级；成功即写缓存返回
   const failures: { source: string; error: unknown }[] = []
+  let cached: CacheEntry<T> | undefined
+  if (useCache && spec.monotonicDataAsOf) cached = await spec.cache!.get<T>(spec.key)
   for (const source of spec.sources) {
     try {
       const { value, dataAsOf } = await source.run()
       const asOf = dataAsOf ?? capturedAt.slice(0, 10)
+      if (spec.monotonicDataAsOf && cached !== undefined && asOf < cached.dataAsOf) {
+        failures.push({
+          source: source.name,
+          error: new DataSourceError(`数据日期 ${asOf} 早于缓存 ${cached.dataAsOf}`),
+        })
+        continue
+      }
       if (useCache) {
-        await spec.cache!.set(spec.key, {
+        const entry = {
           value,
           source: source.name,
           dataAsOf: asOf,
           capturedAt,
           expiresAt: now.getTime() + spec.ttlMs,
-        })
+        }
+        if (spec.monotonicDataAsOf) {
+          const written = spec.cache!.setIfNotOlder
+            ? await spec.cache!.setIfNotOlder(spec.key, entry)
+            : await setMonotonic(spec.cache!, spec.key, entry)
+          if (!written) {
+            const newest = await spec.cache!.get<T>(spec.key)
+            failures.push({
+              source: source.name,
+              error: new DataSourceError(
+                `数据日期 ${asOf} 不晚于并发缓存 ${newest?.dataAsOf ?? '未知'}`,
+              ),
+            })
+            continue
+          }
+        } else await spec.cache!.set(spec.key, entry)
       }
       return {
         value,

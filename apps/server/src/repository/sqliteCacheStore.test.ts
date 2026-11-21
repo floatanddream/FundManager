@@ -26,3 +26,12 @@ it('已过期仍能取回——降级要靠它拿旧值', async () => {
   await s.set('k', entry(1, 1))
   expect(await s.get('k')).toBeDefined()
 })
+
+it('SQLite 单调条件写入拒绝旧日期，允许新日期原子覆盖', async () => {
+  const s = createSqliteCacheStore(openDatabase().db)
+  await s.set('nav', entry(2))
+  expect(await s.setIfNotOlder!('nav', { ...entry(1), dataAsOf: '2026-11-17' })).toBe(false)
+  expect(await s.get('nav')).toMatchObject({ value: 2, dataAsOf: '2026-11-18' })
+  expect(await s.setIfNotOlder!('nav', { ...entry(3), dataAsOf: '2026-11-19' })).toBe(true)
+  expect(await s.get('nav')).toMatchObject({ value: 3, dataAsOf: '2026-11-19' })
+})

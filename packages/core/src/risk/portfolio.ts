@@ -12,8 +12,9 @@ import { assertNavSeries } from './series.ts'
  * 每只基金分红除息日都会在组合里造出一次不存在的下跌。品牌类型 `AdjustedNav`
  * 让这种误用在编译期就过不去。
  *
- * **基期归一**：各基金单位净值量级不同（1 元与 4 元），所以每条序列先除以自己在
- * 共同日期首日的值，再按权重相加。首日合成值为 1，后续值即组合指数。
+ * 每一期都用截止日市值权重加权基金收益，再把组合收益复利成指数。权重代表
+ * 截止日的配置并在历史期间保持不变；不能把首日归一的基金价格水平线性相加，
+ * 那相当于历史期间固定份额，收益路径会错误。
  *
  * **只取共同日期**：各基金停牌/缺失日不同，逐日补值需要「停牌日净值不变」的假设。
  * 取交集不做这个假设，代价是组合序列在个别基金缺数时少几个观测。
@@ -21,7 +22,7 @@ import { assertNavSeries } from './series.ts'
  * @param seriesList 各基金的复权净值序列（升序），顺序即权重顺序
  * @param weights 与 `seriesList` 同序的市值权重；只比较相对大小，不必和为 1
  * @param label 出错时用于定位的标签
- * @returns 组合指数（同日基归一后加权），没有共同日期时为空数组
+ * @returns 组合指数（截止日权重逐期加权收益后复利），没有共同日期时为空数组
  * @throws {TypeError} 序列数与权重数不一致、权重为负或非有限数、权重和为 0，
  *   或任一条序列非法（透传 `assertNavSeries`）
  */
@@ -48,15 +49,20 @@ export function compositeAdjustedSeries(
   if (dates.length === 0) return []
 
   const valuesByDate = seriesList.map((series) => new Map(series.map((p) => [p.date, p.value])))
-  // 各序列以共同日期首日为基期，消除单位净值量级差异
-  const bases = valuesByDate.map((values) => values.get(dates[0]!)!)
-  const composite = dates.map((date) => {
-    const weighted = valuesByDate.reduce(
-      (sum, values, i) => sum + weights[i]! * (values.get(date)! / bases[i]!),
-      0,
-    )
-    return navConfirmed(weighted / total, date)
-  })
+  const normalizedWeights = weights.map((weight) => weight / total)
+  let index = 1
+  const composite = [navConfirmed(index, dates[0]!)]
+  for (let dateIndex = 1; dateIndex < dates.length; dateIndex += 1) {
+    const previousDate = dates[dateIndex - 1]!
+    const date = dates[dateIndex]!
+    // 组合每期先按固定的截止日权重合成简单收益，再对组合收益复利。
+    const returnForPeriod = valuesByDate.reduce((sum, values, i) => {
+      const previous = values.get(previousDate)!
+      return sum + normalizedWeights[i]! * ((values.get(date)! - previous) / previous)
+    }, 0)
+    index *= 1 + returnForPeriod
+    composite.push(navConfirmed(index, date))
+  }
 
   const result = composite.map(asAdjusted)
   assertNavSeries(result, label)
@@ -76,7 +82,7 @@ function commonDates(seriesList: readonly (readonly AdjustedNav[])[]): string[] 
 }
 
 /**
- * 组合指数是复权序列的线性组合，仍是分红再投口径。
+ * 组合指数使用复权基金收益逐期加权，仍是分红再投口径。
  *
  * 品牌只在本模块内打、不导出：一旦导出，任意 `NavConfirmed` 都能被洗成
  * `AdjustedNav`，类型隔离立刻失去意义（与 `adjusted.ts` 同一约束）。

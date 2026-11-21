@@ -218,8 +218,8 @@ type RawLsjzRow = z.output<typeof lsjzRowSchema>
 function buildNavEvent(row: RawLsjzRow): NavEvent | null {
   const description = row.FHSP ?? ''
   const hasAmount = row.FHFCZ !== null && row.FHFCZ !== undefined && row.FHFCZ !== ''
-  if (description === '' && !hasAmount) return null
   const code = row.FHFCBZ === null || row.FHFCBZ === undefined ? '' : String(row.FHFCBZ)
+  if (description === '' && !hasAmount && code === '') return null
   return {
     kind: NAV_EVENT_KINDS[code] ?? 'unknown',
     perUnit: toNumber(row.FHFCZ, `lsjz FHFCZ(${row.FSRQ})`),

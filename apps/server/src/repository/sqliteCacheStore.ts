@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, lte } from 'drizzle-orm'
 import type { CacheEntry, CacheStore } from '@fundmanager/datasource'
 import type { AppDatabase } from '../db/client.ts'
 import { cache } from '../db/schema.ts'
@@ -27,5 +27,20 @@ export const createSqliteCacheStore = (db: AppDatabase): CacheStore => ({
     const row = { key, ...entry, value: JSON.stringify(entry.value) }
     // 主键冲突即覆盖：onConflictDoUpdate 而不是先删后插，少一次 IO
     await db.insert(cache).values(row).onConflictDoUpdate({ target: cache.key, set: row })
+  },
+
+  /** SQLite 条件 upsert 在数据库内原子比较时点，跨进程也不会让旧响应倒退缓存。 */
+  async setIfNotOlder<T>(key: string, entry: CacheEntry<T>): Promise<boolean> {
+    const row = { key, ...entry, value: JSON.stringify(entry.value) }
+    const rows = await db
+      .insert(cache)
+      .values(row)
+      .onConflictDoUpdate({
+        target: cache.key,
+        set: row,
+        setWhere: lte(cache.dataAsOf, entry.dataAsOf),
+      })
+      .returning({ key: cache.key })
+    return rows.length > 0
   },
 })

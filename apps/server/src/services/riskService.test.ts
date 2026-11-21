@@ -156,6 +156,34 @@ it('单只基金净值失败时其余基金仍参与组合，且 loss 点名缺�
   const r = await getPortfolioRisk({ ...base, dataSource }, 'L1', { asOf: '2026-01-03' })
   expect(r.value?.members.map((member) => member.observations)).toEqual([0, 3])
   expect(r.loss).toContain('000001')
+  expect(r.value?.maxDrawdown.loss).toContain('000001')
+  expect(r.value?.correlationFundCodes).toEqual([])
+})
+
+it('组合风险截断截止日后的行情，并返回相关矩阵的基金代码顺序', async () => {
+  const txs = ['000001', '000002'].map((fundCode) => tx({ fundCode, date: '2026-01-01' }))
+  const r = await getPortfolioRisk(
+    portfolioDeps(txs, {
+      '000001': fetched([
+        row('2026-01-01', 1, 1),
+        row('2026-01-02', 1.1, 1.1),
+        row('2026-01-03', 1, 1),
+        row('2026-01-04', 10, 10),
+      ]),
+      '000002': fetched([
+        row('2026-01-01', 1, 1),
+        row('2026-01-02', 0.9, 0.9),
+        row('2026-01-03', 1, 1),
+        row('2026-01-04', 1, 1),
+      ]),
+    }),
+    'L1',
+    { asOf: '2026-01-03' },
+  )
+  expect(r.value?.members.map((member) => member.observations)).toEqual([3, 3])
+  expect(r.value?.correlationFundCodes).toEqual(['000001', '000002'])
+  expect(r.value?.correlation.value?.[0]?.[1]).toBeCloseTo(-1)
+  expect(r.value?.correlation.dataAsOf).toBe('2026-01-03')
 })
 
 it('单基金风险路由不需要账本；坏基金代码是 400', async () => {
@@ -186,6 +214,7 @@ it('组合风险路由用账本里的流水与市值权重；没有流水的账�
     (await app.inject({ method: 'GET', url: '/api/ledgers/L1/portfolio/risk' })).body,
   )
   expect(body.value.members[0]).toMatchObject({ fundCode: '000001', weight: 1 })
+  expect(body.value.correlationFundCodes).toEqual([])
   const empty = await app.inject({ method: 'GET', url: '/api/ledgers/L2/portfolio/risk' })
   expect(JSON.parse(empty.body).reason).toBe('该账本没有持仓')
 })

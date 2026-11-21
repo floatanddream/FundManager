@@ -261,7 +261,9 @@ export function Portfolio({
                           )}
                         </td>
                         <td className={marketValue.stale ? 'workspace-stale-date' : undefined}>
-                          {marketValue.value === null ? '—' : marketValue.dataAsOf}
+                          {position.shares === 0 || marketValue.value === null
+                            ? '—'
+                            : marketValue.dataAsOf}
                           {marketValue.stale && <span className="workspace-subtle">沿用缓存</span>}
                         </td>
                       </tr>

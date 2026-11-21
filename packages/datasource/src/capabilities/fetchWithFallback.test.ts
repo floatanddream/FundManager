@@ -87,3 +87,91 @@ it('全链均为业务码失败：错误信息给出可操作提示（缺 Refere
     }),
   ).rejects.toThrow(/Referer.*UA|UA.*Referer/)
 })
+
+it('净值单调保护：较旧主源继续尝试备源；全源倒退时保留缓存并标 stale', async () => {
+  const cache = new MemoryCacheStore()
+  await cache.set('nav', {
+    value: 3,
+    source: 'last',
+    dataAsOf: '2026-11-18',
+    capturedAt: '2026-11-19T08:00:00+08:00',
+    expiresAt: 1,
+  })
+  const r = await fetchWithFallback({
+    key: 'nav',
+    ttlMs: 1000,
+    cache,
+    monotonicDataAsOf: true,
+    sources: [
+      { name: 'old-primary', run: async () => ({ value: 1, dataAsOf: '2026-11-17' }) },
+      { name: 'newer-backup', run: async () => ({ value: 4, dataAsOf: '2026-11-19' }) },
+    ],
+  })
+  expect(r).toMatchObject({ value: 4, source: 'newer-backup', stale: false })
+  const latest = await cache.get<number>('nav')
+  await cache.set('nav', { ...latest!, expiresAt: 1 })
+  const stale = await fetchWithFallback({
+    key: 'nav',
+    ttlMs: 1000,
+    cache,
+    monotonicDataAsOf: true,
+    sources: [{ name: 'old-only', run: async () => ({ value: 2, dataAsOf: '2026-11-17' }) }],
+  })
+  expect(stale).toMatchObject({ value: 4, dataAsOf: '2026-11-19', stale: true })
+})
+
+it('并发净值回写按 dataAsOf 保护，晚返回的旧响应不能覆盖新缓存', async () => {
+  const cache = new MemoryCacheStore()
+  let releaseOld!: () => void
+  const oldWait = new Promise<void>((resolve) => {
+    releaseOld = resolve
+  })
+  const old = fetchWithFallback({
+    key: 'race',
+    ttlMs: 1000,
+    cache,
+    monotonicDataAsOf: true,
+    sources: [
+      {
+        name: 'old',
+        run: async () => {
+          await oldWait
+          return { value: 1, dataAsOf: '2026-11-17' }
+        },
+      },
+    ],
+  })
+  const fresh = await fetchWithFallback({
+    key: 'race',
+    ttlMs: 1000,
+    cache,
+    monotonicDataAsOf: true,
+    sources: [{ name: 'fresh', run: async () => ({ value: 2, dataAsOf: '2026-11-18' }) }],
+  })
+  releaseOld()
+  const older = await old
+  expect(fresh.value).toBe(2)
+  expect(older).toMatchObject({ value: 2, dataAsOf: '2026-11-18', stale: true })
+  expect((await cache.get<number>('race'))?.value).toBe(2)
+})
+
+it('净值缓存按写入时 TTL 限龄，旧 24h expiresAt 不会命中', async () => {
+  const cache = new MemoryCacheStore()
+  const now = new Date('2026-11-20T20:00:00+08:00')
+  await cache.set('nav', {
+    value: 1,
+    source: 'old',
+    dataAsOf: '2026-11-19',
+    capturedAt: '2026-11-19T20:00:00+08:00',
+    expiresAt: now.getTime() + 60_000_000,
+  })
+  const result = await fetchWithFallback({
+    key: 'nav',
+    ttlMs: 30 * 60 * 1000,
+    cache,
+    monotonicDataAsOf: true,
+    now: () => now,
+    sources: [{ name: 'fresh', run: async () => ({ value: 2, dataAsOf: '2026-11-20' }) }],
+  })
+  expect(result).toMatchObject({ value: 2, source: 'fresh', stale: false })
+})

@@ -12,15 +12,17 @@ import {
   MultipleRootsError,
   derivePosition,
   normalizeFlows,
+  positionMarketValue,
   toCashFlows,
   xirr,
   type CashFlow,
   type LedgerTransaction,
 } from '@fundmanager/core'
-import type { FundDataSource } from '@fundmanager/datasource'
-import { fromDerived, type Sourced } from '../envelope.ts'
+import { DataSourceError, type FundDataSource, type NavHistory } from '@fundmanager/datasource'
+import { approxEqual } from '@fundmanager/shared'
+import { fromDerived, fromFetched, type Sourced } from '../envelope.ts'
 import type { createTransactionRepository } from '../repository/transactionRepository.ts'
-import { getNav } from './navService.ts'
+import { navFetchFailure } from './navService.ts'
 
 export type ReturnDeps = {
   readonly transactionRepository: Pick<ReturnType<typeof createTransactionRepository>, 'listByFund'>
@@ -46,6 +48,7 @@ export type FundReturn = {
 const NAV_MISSING = '净值历史里没有截止日当天及以前的净值，无法确定期末市值'
 const NO_CONFIRMED = '该基金在账本里没有已确认的流水，无法计算收益率'
 const NOT_ENOUGH = '现金流不足：至少需要一笔投入与一笔收回才能算年化收益率'
+const NO_OPEN_POSITION = '截止日没有持仓，计算收益无需期末净值'
 
 /** 中国时区的今天（`YYYY-MM-DD`） */
 const todayInChina = (): string =>
@@ -61,6 +64,22 @@ const atNavDate = <T>(envelope: Sourced<T>, date: string): Sourced<T> => ({
   ...envelope,
   dataAsOf: date,
 })
+
+/** 平仓后的收益只依赖已确认流水，数据时点取最后一笔参与计算的流水。 */
+function ledgerInput(asOf: string): Sourced<null> {
+  return {
+    value: null,
+    reason: null,
+    source: 'repository/transaction',
+    dataAsOf: asOf,
+    capturedAt: new Date(Date.now() + 8 * 60 * 60 * 1000)
+      .toISOString()
+      .replace(/\.\d{3}Z$/, '+08:00'),
+    stale: false,
+    loss: null,
+    provenance: [],
+  }
+}
 
 /**
  * 求解年化收益率。多解是**正常的数据形态**，不是计算失败：此时不给单一数字。
@@ -87,7 +106,8 @@ const solve = (flows: readonly CashFlow[], transactions: readonly LedgerTransact
  * @returns 该基金在账本里一笔流水都没有时为 `null`（路由据此回 404：查错了对象）；
  *   净值缺失或现金流不足时 `endValue` / `xirr` 为 `value: null` + `reason`，**不是 0**
  *
- * @remarks 已全部赎回的基金照常返回：期末市值为 0，收益率由流水本身给出。
+ * @remarks 有持仓时使用末笔净值日的历史持仓与现金流。已清仓时直接使用已确认流水。
+ * @throws {TypeError} 截止日期或账本流水不合法。
  */
 export async function getFundReturn(
   deps: ReturnDeps,
@@ -95,33 +115,53 @@ export async function getFundReturn(
   fundCode: string,
   opts: { readonly asOf?: string } = {},
 ): Promise<Sourced<FundReturn> | null> {
-  const asOf = opts.asOf ?? todayInChina()
+  const cutoff = opts.asOf ?? todayInChina()
   const transactions = await deps.transactionRepository.listByFund(ledgerId, fundCode)
   if (transactions.length === 0) return null
 
-  // 份额与现金流用同一个截止日，否则期末市值会配上一段截止日之后的流水
-  const upTo = transactions.filter((t) => t.date <= asOf)
-  const shares = derivePosition(transactions, ledgerId, fundCode, asOf).shares
+  const cutoffPosition = derivePosition(transactions, ledgerId, fundCode, cutoff)
+  const upToCutoff = transactions.filter((t) => t.status === 'confirmed' && t.date <= cutoff)
+  const closed = approxEqual(cutoffPosition.shares, 0)
+  let asOf = cutoff
+  let shares = cutoffPosition.shares
+  let inputs = upToCutoff
+  let endNav: Sourced<number>
+  let endValue: Sourced<number>
+  if (closed) {
+    asOf = upToCutoff.reduce((latest, t) => (t.date > latest ? t.date : latest), '') || cutoff
+    const ledger = ledgerInput(asOf)
+    endNav = fromDerived<number>(null, NO_OPEN_POSITION, [ledger])
+    endValue = fromDerived(0, null, [ledger])
+  } else {
+    let nav: Sourced<NavHistory>
+    try {
+      nav = fromFetched(await deps.dataSource.navHistory(fundCode))
+    } catch (error) {
+      if (!(error instanceof DataSourceError)) throw error
+      nav = navFetchFailure(fundCode, cutoff, error)
+    }
+    const latest = nav.value?.rows.find((row) => row.nav.date <= cutoff)?.nav
+    if (latest) {
+      // 晚于净值日的流水不能配旧净值，否则补录会虚增期末市值并改变年化期长。
+      asOf = latest.date
+      inputs = upToCutoff.filter((t) => t.date <= asOf)
+      shares = derivePosition(inputs, ledgerId, fundCode, asOf).shares
+      const navInput = atNavDate(nav, asOf)
+      endNav = fromDerived(latest.value, null, [navInput])
+      endValue = fromDerived(positionMarketValue(shares, latest), null, [navInput])
+    } else {
+      endNav = fromDerived<number>(null, nav.reason ?? NAV_MISSING, [nav])
+      endValue = fromDerived<number>(null, endNav.reason, [nav])
+    }
+  }
 
-  // 只要未复权的 `nav`；`adjusted` 是风险指标的事
-  const { nav } = await getNav(deps, fundCode)
-  const latest = nav.value?.rows.find((row) => row.nav.date <= asOf) ?? null
-  const navInput = latest === null ? nav : atNavDate(nav, latest.nav.date)
-  const endNav = fromDerived(latest?.nav.value ?? null, latest === null ? NAV_MISSING : null, [
-    navInput,
-  ])
-  const endValue = fromDerived(
-    latest === null ? null : shares * latest.nav.value,
-    latest === null ? NAV_MISSING : null,
-    [navInput],
-  )
-
-  const flows: CashFlow[] = [...normalizeFlows(toCashFlows(upTo, ledgerId, fundCode))]
-  // 已全部赎回时期末市值为 0；`xirr` 内部会再归一一次，零金额那一笔自然被剔除
-  if (endValue.value !== null) flows.push({ date: asOf, amount: endValue.value })
-
-  // 期末市值都不知道时现金流不完整，不能拿剩下的流水凑一个收益率
-  const rate = endValue.value === null ? { value: null, reason: NAV_MISSING } : solve(flows, upTo)
+  const flows: CashFlow[] = [...normalizeFlows(toCashFlows(inputs, ledgerId, fundCode))]
+  if (!closed && endValue.value !== null && !approxEqual(shares, 0)) {
+    flows.push({ date: asOf, amount: endValue.value })
+  }
+  // 持仓市值未知时现金流不完整，不能用剩余流水凑一个收益率。
+  const rate =
+    endValue.value === null ? { value: null, reason: endValue.reason } : solve(flows, inputs)
 
   const view: FundReturn = {
     fundCode,

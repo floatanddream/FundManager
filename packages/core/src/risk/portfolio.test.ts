@@ -11,10 +11,16 @@ const adj = (v: number, date: string): AdjustedNav =>
 const series = (values: readonly number[]): AdjustedNav[] =>
   values.map((v, i) => adj(v, `2024-01-${String(i + 1).padStart(2, '0')}`))
 
-it('按权重合成：基期归一后加权，量级不同的基金也能相加', () => {
-  // 1 元与 4 元起、一只翻倍一只不动：等权后第二日 = (2/1 + 4/4)/2 = 1.5，不是 (2+4)/2
+it('按权重合成收益：量级不同的基金也能相加', () => {
+  // 一只先涨 100% 再跌 50%，另一只持平；等权逐期复利后 = 1.5 × 0.75 = 1.125。
   const c = compositeAdjustedSeries([series([1, 2, 1]), series([4, 4, 4])], [0.5, 0.5])
-  expect(c.map((p) => p.value)).toEqual([1, 1.5, 1])
+  expect(c.map((p) => p.value)).toEqual([1, 1.5, 1.125])
+})
+
+it('逐期按权重加权收益并复利，不把截止日权重误作固定份额', () => {
+  // 权重 80:20。A 先涨 100% 后跌 50%，B 持平；组合逐期收益 +80%、-40%，终值 1.08。
+  const c = compositeAdjustedSeries([series([1, 2, 1]), series([1, 1, 1])], [0.8, 0.2])
+  expect(c.map((p) => p.value)).toEqual([1, 1.8, 1.08])
 })
 
 it('权重不必归一：3:1 与 0.75:0.25 结果相同', () => {

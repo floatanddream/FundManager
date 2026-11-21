@@ -85,7 +85,7 @@ export async function reconcileFund(
 
   const asOf = opts.asOf ?? todayInChina()
   const transactions = await deps.transactionRepository.listByFund(ledgerId, opts.fundCode)
-  const lastMatchedAt = await deps.reconcileRepository.lastMatchedAt(ledgerId, opts.fundCode)
+  const lastMatchedAt = await deps.reconcileRepository.lastMatchedAt(ledgerId, opts.fundCode, asOf)
 
   const result = reconcile({
     transactions,

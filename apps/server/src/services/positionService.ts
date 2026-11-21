@@ -7,12 +7,18 @@
  * 成本未知（流水中没有买入记录）时 `cost` / `costPerShare` / 浮动盈亏全部为 `null`
  * 并带原因，**不编 0**（§6：此时只做风险跟踪、不显示个人盈亏）。
  */
-import { derivePosition, type LedgerTransaction } from '@fundmanager/core'
+import {
+  derivePosition,
+  positionChangedAfter,
+  positionMarketValue,
+  type LedgerTransaction,
+} from '@fundmanager/core'
 import { DataSourceError } from '@fundmanager/datasource'
 import type { FundDataSource, NavHistory } from '@fundmanager/datasource'
-import { fromDerived, type Sourced } from '../envelope.ts'
+import { approxEqual } from '@fundmanager/shared'
+import { fromDerived, fromFetched, type Sourced } from '../envelope.ts'
 import type { createTransactionRepository } from '../repository/transactionRepository.ts'
-import { getNav, navFetchFailure } from './navService.ts'
+import { navFetchFailure } from './navService.ts'
 
 export type PositionDeps = {
   readonly transactionRepository: Pick<
@@ -40,6 +46,7 @@ export type PositionView = {
 /** 成本未知的统一说法：前端直接显示，也让「为什么不给盈亏」自解释 */
 const COST_UNKNOWN = '成本未知（流水中没有买入记录），只能做风险跟踪，不显示个人盈亏'
 const NAV_MISSING = '净值历史里没有截止日当天及以前的净值，无法计算市值'
+const WAITING_FOR_NAV = '最近的确认净值早于本次持仓变动，等待对应净值后再计算市值'
 const NO_SHARES = '份额为 0，单位成本无意义'
 
 /** 当前时刻，带中国时区的 ISO 8601——与数据源层 `capturedAt` 同一格式 */
@@ -65,6 +72,41 @@ const fromLedger = <T>(value: T | null, reason: string | null, asOf: string): So
   provenance: [],
 })
 
+/** 市值只需未复权净值。清仓后已知市值为零，也无需访问上游。 */
+async function getMarketValue(
+  deps: PositionDeps,
+  transactions: readonly LedgerTransaction[],
+  ledgerId: string,
+  fundCode: string,
+  asOf: string,
+  shares: number,
+): Promise<Sourced<number>> {
+  if (approxEqual(shares, 0)) return fromLedger(0, null, asOf)
+
+  let nav: Sourced<NavHistory>
+  try {
+    nav = fromFetched(await deps.dataSource.navHistory(fundCode))
+  } catch (error) {
+    if (!(error instanceof DataSourceError)) throw error
+    nav = navFetchFailure(fundCode, asOf, error)
+  }
+
+  const latest = nav.value?.rows.find((row) => row.nav.date <= asOf)?.nav
+  if (!latest) return fromDerived<number>(null, nav.reason ?? NAV_MISSING, [nav])
+
+  const input = { ...nav, dataAsOf: latest.date }
+  const hasNewPositionChange = positionChangedAfter(
+    transactions,
+    ledgerId,
+    fundCode,
+    latest.date,
+    asOf,
+  )
+  return hasNewPositionChange
+    ? fromDerived<number>(null, WAITING_FOR_NAV, [input])
+    : fromDerived(positionMarketValue(shares, latest), null, [input])
+}
+
 /**
  * 推导单只基金的持仓视图。
  *
@@ -80,22 +122,14 @@ async function buildPosition(
 ): Promise<PositionView> {
   const position = derivePosition(transactions, ledgerId, fundCode, asOf)
 
-  // 单只基金取不到净值不能打挂整个列表：把失败装进信封继续，其余基金照常出数
-  let nav: Sourced<NavHistory>
-  try {
-    // 只要未复权的 `nav`；`adjusted` 是风险指标的事，市值不用
-    ;({ nav } = await getNav(deps, fundCode))
-  } catch (error) {
-    if (!(error instanceof DataSourceError)) throw error
-    nav = navFetchFailure<NavHistory>(fundCode, asOf, error)
-  }
-
-  // 净值历史降序（最新在前）。只认截止日当天及以前——按历史日期回看时不能拿今天的价
-  const latest = nav.value?.rows.find((row) => row.nav.date <= asOf) ?? null
-  const marketValue =
-    latest === null
-      ? fromDerived<number>(null, nav.reason ?? NAV_MISSING, [nav])
-      : fromDerived(position.shares * latest.nav.value, null, [nav])
+  const marketValue = await getMarketValue(
+    deps,
+    transactions,
+    ledgerId,
+    fundCode,
+    asOf,
+    position.shares,
+  )
 
   const cost = fromLedger(position.cost, position.cost === null ? COST_UNKNOWN : null, asOf)
   const costPerShare = fromLedger(

@@ -25,4 +25,6 @@ export type CacheEntry<T> = {
 export interface CacheStore {
   get<T>(key: string): Promise<CacheEntry<T> | undefined>
   set<T>(key: string, entry: CacheEntry<T>): Promise<void>
+  /** 原子地写入，且仅当已存 dataAsOf 不晚于新记录时成功。 */
+  setIfNotOlder?<T>(key: string, entry: CacheEntry<T>): Promise<boolean>
 }

@@ -258,7 +258,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
               </label>
               <p className="ledger-action__hint">
                 同一天多笔流水的序号从 0 起且不能重复。默认
-                0，可按实际先后调整；旧数据缺少序号时以服务端校验结果为准。
+                0，可按实际先后调整。若已有一笔旧流水未编号，补录在它之后时请填 1 或更大。
               </p>
               <label>
                 备注 <span className="ledger-action__optional">选填</span>

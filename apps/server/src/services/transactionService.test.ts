@@ -1,4 +1,7 @@
 import { expect, it } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { buildApp } from '../app.ts'
 import { openDatabase } from '../db/client.ts'
 import { createLedgerRepository } from '../repository/ledgerRepository.ts'
@@ -74,6 +77,81 @@ it('缺份额由推导报错并拦下，不入库', async () => {
     addTransaction(deps, 'L1', buy({ sharesDelta: null, amount: -100 })),
   ).rejects.toThrow(/缺 sharesDelta/)
   expect(await list()).toHaveLength(0)
+})
+
+it('旧的同日唯一 null sequence 可由正序号补录原子补零；失败时两笔都不变', async () => {
+  const { deps, list } = await fresh()
+  await addTransaction(deps, 'L1', buy())
+  await expect(
+    addTransaction(
+      deps,
+      'L1',
+      buy({ kind: 'redeem', sharesDelta: -200, amount: 300, sequence: 1 }),
+    ),
+  ).rejects.toThrow(/账面只有/)
+  expect((await list())[0]?.sequence).toBeNull()
+  await addTransaction(
+    deps,
+    'L1',
+    buy({ kind: 'redeem', sharesDelta: -50, amount: 75, sequence: 1 }),
+  )
+  expect((await list()).map((t) => t.sequence)).toEqual([0, 1])
+})
+
+it('同连接并发的超额赎回只允许一笔落库', async () => {
+  const { deps, list } = await fresh()
+  await addTransaction(deps, 'L1', buy())
+  const results = await Promise.allSettled([
+    addTransaction(
+      deps,
+      'L1',
+      buy({ date: '2026-01-06', kind: 'redeem', sharesDelta: -70, amount: 105 }),
+    ),
+    addTransaction(
+      deps,
+      'L1',
+      buy({ date: '2026-01-06', kind: 'redeem', sharesDelta: -70, amount: 105 }),
+    ),
+  ])
+  expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+  expect((await list()).map((t) => t.kind)).toEqual(['subscribe', 'redeem'])
+})
+
+it('两个 SQLite 连接竞争时也串行试算写入', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fundmanager-ledger-'))
+  const file = join(dir, 'ledger.db')
+  try {
+    const first = openDatabase(file)
+    first.sqlite
+      .prepare('INSERT INTO ledger (id, name, createdAt) VALUES (?, ?, ?)')
+      .run('L1', '测试账本', '2026-01-01T00:00:00+08:00')
+    const second = openDatabase(file)
+    const depsFor = (db: typeof first.db): TransactionDeps => ({
+      transactionRepository: createTransactionRepository(db),
+      ledgerRepository: createLedgerRepository(db),
+    })
+    await addTransaction(depsFor(first.db), 'L1', buy())
+    const competing = await Promise.allSettled([
+      addTransaction(
+        depsFor(first.db),
+        'L1',
+        buy({ date: '2026-01-06', kind: 'redeem', sharesDelta: -70, amount: 105 }),
+      ),
+      addTransaction(
+        depsFor(second.db),
+        'L1',
+        buy({ date: '2026-01-06', kind: 'redeem', sharesDelta: -70, amount: 105 }),
+      ),
+    ])
+    expect(competing.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+    await expect(
+      createTransactionRepository(first.db).listByFund('L1', '000001'),
+    ).resolves.toHaveLength(2)
+    first.sqlite.close()
+    second.sqlite.close()
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
 
 // 路由层：真库 + Fastify inject，断言错误被翻译且坏数据没有把后续路由弄坏
