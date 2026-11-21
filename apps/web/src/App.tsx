@@ -5,12 +5,15 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { ChevronDown, Plus } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api } from './api.ts'
+import { Alert, AlertDescription, AlertTitle } from './components/ui/alert.tsx'
 import { Button } from './components/ui/button.tsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card.tsx'
 import { Input } from './components/ui/input.tsx'
+import { NativeSelect, NativeSelectOption } from './components/ui/native-select.tsx'
 import { FundSearch, Portfolio } from './Workspaces.tsx'
 import {
   applyTheme,
@@ -56,43 +59,37 @@ function LedgerSetup({
   }
 
   return (
-    <section className="workspace-panel setup-panel">
-      <h2>新建账本</h2>
-      <p>账本中的流水和持仓保存在本机。</p>
-      <form onSubmit={submit}>
-        <label htmlFor="ledger-name">账本名称</label>
-        <Input
-          id="ledger-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          required
-        />
-        {create.error && (
-          <p role="alert" className="workspace-error">
-            {create.error.message}
-          </p>
-        )}
-        <div className="workspace-actions">
-          {onCancel && (
-            <Button
-              type="button"
-              variant="outline"
-              className="workspace-button secondary"
-              onClick={onCancel}
-            >
-              取消
-            </Button>
+    <Card className="max-w-lg">
+      <CardHeader>
+        <CardTitle>
+          <h2>新建账本</h2>
+        </CardTitle>
+        <CardDescription>账本中的流水和持仓保存在本机。</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form className="grid gap-4" onSubmit={submit}>
+          <label className="grid gap-2">
+            账本名称
+            <Input value={name} onChange={(event) => setName(event.target.value)} required />
+          </label>
+          {create.error && (
+            <Alert variant="destructive">
+              <AlertDescription>{create.error.message}</AlertDescription>
+            </Alert>
           )}
-          <Button
-            type="submit"
-            className="workspace-button"
-            disabled={!name.trim() || create.isPending}
-          >
-            {create.isPending ? '正在创建…' : '创建账本'}
-          </Button>
-        </div>
-      </form>
-    </section>
+          <div className="workspace-actions">
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel}>
+                取消
+              </Button>
+            )}
+            <Button type="submit" disabled={!name.trim() || create.isPending}>
+              {create.isPending ? '正在创建…' : '创建账本'}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -143,53 +140,45 @@ function Workspace({
 
   return (
     <>
-      <header className="workspace-header">
+      <header className="border-b">
         <div className="workspace-toolbar">
-          <Button
-            variant="ghost"
-            className="workspace-wordmark h-auto p-0 hover:bg-transparent"
-            onClick={() => setTab('portfolio')}
-          >
+          <Button variant="ghost" onClick={() => setTab('portfolio')}>
             FundManager
           </Button>
-          <div className="workspace-ledger">
-            <select
-              aria-label="当前账本"
-              value={ledger?.id ?? ''}
-              disabled={ledgers.isPending || ledgers.isError}
-              onChange={(event) => {
-                if (event.target.value === 'new') {
-                  setTab('portfolio')
-                  setCreating(true)
-                } else {
-                  setLedgerChoice(event.target.value)
-                  setCreating(false)
-                  setNotice('')
-                }
-              }}
-            >
-              {!ledger && <option value="">选择账本</option>}
-              {list.map((entry) => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.name}
-                </option>
-              ))}
-              <option value="new">新建账本</option>
-            </select>
-            <ChevronDown size={15} aria-hidden="true" />
-          </div>
+          <NativeSelect
+            className="workspace-ledger"
+            aria-label="当前账本"
+            value={ledger?.id ?? ''}
+            disabled={ledgers.isPending || ledgers.isError}
+            onChange={(event) => {
+              if (event.target.value === 'new') {
+                setTab('portfolio')
+                setCreating(true)
+              } else {
+                setLedgerChoice(event.target.value)
+                setCreating(false)
+                setNotice('')
+              }
+            }}
+          >
+            {!ledger && <NativeSelectOption value="">选择账本</NativeSelectOption>}
+            {list.map((entry) => (
+              <NativeSelectOption key={entry.id} value={entry.id}>
+                {entry.name}
+              </NativeSelectOption>
+            ))}
+            <NativeSelectOption value="new">新建账本</NativeSelectOption>
+          </NativeSelect>
           <nav aria-label="主导航" className="workspace-nav">
             <Button
-              variant="ghost"
-              className="h-auto rounded-none hover:bg-transparent"
+              variant={tab === 'portfolio' ? 'secondary' : 'ghost'}
               aria-current={tab === 'portfolio' ? 'page' : undefined}
               onClick={() => setTab('portfolio')}
             >
               组合
             </Button>
             <Button
-              variant="ghost"
-              className="h-auto rounded-none hover:bg-transparent"
+              variant={tab === 'funds' ? 'secondary' : 'ghost'}
               aria-current={tab === 'funds' ? 'page' : undefined}
               onClick={() => setTab('funds')}
             >
@@ -197,39 +186,39 @@ function Workspace({
             </Button>
           </nav>
           <Button
-            className="workspace-button toolbar-action"
+            className="toolbar-action"
             disabled={ledgers.isPending || ledgers.isError}
             onClick={() => openTransaction()}
           >
             <Plus size={17} aria-hidden="true" />
             录入流水
           </Button>
-          <select
+          <NativeSelect
             className="theme-select"
             aria-label="主题模式"
             value={themePreference}
             onChange={(event) => onThemeChange(event.target.value as ThemePreference)}
           >
-            <option value="system">跟随系统</option>
-            <option value="light">亮色</option>
-            <option value="dark">暗色</option>
-          </select>
+            <NativeSelectOption value="system">跟随系统</NativeSelectOption>
+            <NativeSelectOption value="light">亮色</NativeSelectOption>
+            <NativeSelectOption value="dark">暗色</NativeSelectOption>
+          </NativeSelect>
         </div>
       </header>
 
       <main className="workspace-main">
         {notice && (
-          <div className="workspace-notice" role="status">
-            {notice}
+          <Alert className="mb-4 flex items-center justify-between gap-3" role="status">
+            <AlertTitle>{notice}</AlertTitle>
             <Button
               variant="ghost"
               size="icon-sm"
               aria-label="关闭提示"
               onClick={() => setNotice('')}
             >
-              ×
+              <X aria-hidden="true" />
             </Button>
-          </div>
+          </Alert>
         )}
         {tab === 'funds' ? (
           <FundSearch ledgerId={ledger?.id} onRecord={openTransaction} />
@@ -241,20 +230,18 @@ function Workspace({
               </div>
             )}
             {ledgers.isPending ? (
-              <p className="workspace-panel workspace-empty" role="status">
-                正在读取账本…
-              </p>
+              <Alert role="status">
+                <AlertDescription>正在读取账本…</AlertDescription>
+              </Alert>
             ) : ledgers.isError ? (
-              <div className="workspace-panel workspace-empty">
-                <p role="alert">{ledgers.error.message}</p>
-                <Button
-                  variant="outline"
-                  className="workspace-button secondary"
-                  onClick={() => void ledgers.refetch()}
-                >
-                  重试
-                </Button>
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{ledgers.error.message}</AlertDescription>
+                <div>
+                  <Button variant="outline" onClick={() => void ledgers.refetch()}>
+                    重试
+                  </Button>
+                </div>
+              </Alert>
             ) : creating || !ledger ? (
               <LedgerSetup
                 onCreated={(id) => {
@@ -290,8 +277,13 @@ function Workspace({
       {action && ledger && (
         <Suspense
           fallback={
-            <div className="workspace-overlay-loading" role="status">
-              正在打开表单…
+            <div
+              className="pointer-events-none fixed inset-0 z-50 grid place-items-center"
+              role="status"
+            >
+              <Alert className="w-fit">
+                <AlertDescription>正在打开表单…</AlertDescription>
+              </Alert>
             </div>
           }
         >

@@ -9,7 +9,7 @@
 
 .fd-header p {
   margin-top: 4px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 13px;
 }
 
@@ -22,28 +22,8 @@
 
 .fd-segments {
   display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--hover);
-}
-
-.fd-segments button {
-  border-radius: 5px;
-  padding: 6px 11px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 580;
-  white-space: nowrap;
-  transition:
-    background-color 150ms ease-out,
-    color 150ms ease-out;
-}
-
-.fd-segments button[aria-pressed='true'] {
-  background: var(--accent);
-  color: var(--on-accent);
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .fund-detail-chart,
@@ -73,9 +53,6 @@
   .fund-detail-chart {
     animation: none;
   }
-  .fd-segments button {
-    transition: none;
-  }
 }
 .fd-state {
   display: flex;
@@ -83,7 +60,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 14px;
 }
 .fd-source {
@@ -91,7 +68,7 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 3px 12px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -101,26 +78,26 @@
 }
 .fd-source summary,
 .fd-profile summary {
-  color: var(--accent);
+  color: var(--primary);
 }
 .fd-source details p {
   margin-top: 4px;
 }
 .fd-warning {
-  color: var(--warning);
+  color: var(--muted-foreground);
 }
 .fd-source p.fd-warning {
   flex: 0 0 100%;
 }
 .fd-error {
-  color: var(--gain);
+  color: var(--destructive);
 }
 
 .fd-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
   margin-top: 15px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border);
 }
 .fd-metric {
   min-width: 0;
@@ -131,15 +108,15 @@
 }
 .fd-metric + .fd-metric {
   padding-left: 15px;
-  border-left: 1px solid var(--line);
+  border-left: 1px solid var(--border);
 }
 .fd-metric > span,
 .fd-metric > p {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 12px;
 }
 .fd-metric > p.fd-error {
-  color: var(--gain);
+  color: var(--destructive);
 }
 .fd-metric > strong {
   font-size: 25px;
@@ -148,7 +125,7 @@
   letter-spacing: -0.035em;
 }
 .fd-profile {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border);
   padding-block: 13px;
 }
 .fd-profile dl {
@@ -161,15 +138,12 @@
   padding-block: 3px;
 }
 .fd-profile dt {
-  color: var(--muted);
+  color: var(--muted-foreground);
 }
 
 @media (max-width: 590px) {
   .fund-detail {
     padding-inline: 14px;
-  }
-  .fd-segments button {
-    padding-inline: 8px;
   }
   .fund-detail-chart,
   .fd-state {

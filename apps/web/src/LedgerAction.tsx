@@ -2,8 +2,15 @@ import { useRef, useState, type FormEvent } from 'react'
 import { api, type TransactionInput } from './api.ts'
 import { Button } from './components/ui/button.tsx'
 import { Input } from './components/ui/input.tsx'
-import { Sheet, SheetContent, SheetTitle } from './components/ui/sheet.tsx'
-import './LedgerAction.css'
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from './components/ui/sheet.tsx'
+import { NativeSelect, NativeSelectOption } from './components/ui/native-select.tsx'
+import { Alert, AlertDescription } from './components/ui/alert.tsx'
 
 type Props = {
   mode: 'transaction' | 'reconcile'
@@ -137,32 +144,12 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
         if (!nextOpen) afterClose.current?.()
       }}
     >
-      <SheetContent
-        className="ledger-action__panel"
-        overlayClassName="ledger-action__overlay"
-        showCloseButton={false}
-        initialFocus={codeInput}
-      >
-        <header className="ledger-action__header">
-          <div>
-            <p className="ledger-action__eyebrow">账本操作</p>
-            <SheetTitle className="ledger-action__title">
-              {mode === 'transaction' ? '录入流水' : '份额对账'}
-            </SheetTitle>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            className="ledger-action__close"
-            onClick={close}
-            aria-label="关闭"
-            disabled={busy}
-          >
-            ×
-          </Button>
-        </header>
-        <form onSubmit={submit} className="ledger-action__form">
-          <label>
+      <SheetContent className="max-h-[100dvh] overflow-y-auto" initialFocus={codeInput}>
+        <SheetHeader>
+          <SheetTitle>{mode === 'transaction' ? '录入流水' : '份额对账'}</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={submit} className="grid gap-4 px-4 pb-4">
+          <label className="grid gap-2 text-sm font-medium">
             基金代码
             <Input
               value={code}
@@ -171,16 +158,16 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
               pattern="[0-9]{6}"
               maxLength={6}
               required
-              data-ledger-autofocus
               ref={codeInput}
               placeholder="例如 011609"
             />
           </label>
           {mode === 'transaction' ? (
             <>
-              <label>
+              <label className="grid gap-2 text-sm font-medium">
                 流水类型
-                <select
+                <NativeSelect
+                  className="w-full"
                   value={kind}
                   onChange={(e) => {
                     setKind(e.target.value as TransactionInput['kind'])
@@ -188,23 +175,18 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                   }}
                 >
                   {kinds.map(([value, label]) => (
-                    <option key={value} value={value}>
+                    <NativeSelectOption key={value} value={value}>
                       {label}
-                    </option>
+                    </NativeSelectOption>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
               {kind === 'subscribe' && (
-                <Button
-                  variant="link"
-                  className="workspace-text-button"
-                  type="button"
-                  onClick={() => setHasStatement(!hasStatement)}
-                >
+                <Button variant="link" type="button" onClick={() => setHasStatement(!hasStatement)}>
                   {hasStatement ? '返回金额申购' : '已有回单，直接入账'}
                 </Button>
               )}
-              <label>
+              <label className="grid gap-2 text-sm font-medium">
                 {isSubscriptionDraft
                   ? '交易日期'
                   : kind === 'subscribe'
@@ -218,7 +200,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                 />
               </label>
               {kind !== 'split' && (
-                <label>
+                <label className="grid gap-2 text-sm font-medium">
                   {kind === 'subscribe'
                     ? '申购金额'
                     : kind === 'redeem'
@@ -237,7 +219,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                 </label>
               )}
               {needsShares && (
-                <label>
+                <label className="grid gap-2 text-sm font-medium">
                   {kind === 'subscribe'
                     ? '回单确认份额'
                     : kind === 'redeem'
@@ -280,21 +262,21 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                       required
                     />
                   </label>
-                  <p className="ledger-action__hint">
+                  <p className="text-sm text-muted-foreground">
                     同一天多笔流水的序号从 0 起且不能重复。默认
                     0，可按实际先后调整。若已有一笔旧流水未编号，补录在它之后时请填 1 或更大。
                   </p>
-                  <label>
-                    备注 <span className="ledger-action__optional">选填</span>
+                  <label className="grid gap-2 text-sm font-medium">
+                    备注 <span className="text-muted-foreground">选填</span>
                     <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
                   </label>
                 </>
               )}
-              <p className="ledger-action__direction">{direction}</p>
+              <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">{direction}</p>
             </>
           ) : (
             <>
-              <label>
+              <label className="grid gap-2 text-sm font-medium">
                 平台实际份额
                 <Input
                   type="number"
@@ -305,25 +287,22 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                   required
                 />
               </label>
-              <label>
-                对账截止日 <span className="ledger-action__optional">选填，默认今天</span>
+              <label className="grid gap-2 text-sm font-medium">
+                对账截止日 <span className="text-muted-foreground">选填，默认今天</span>
                 <Input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
               </label>
-              <p className="ledger-action__hint">
+              <p className="text-sm text-muted-foreground">
                 对账只比较平台份额与流水推导份额并显示差异，不会自动修改账本。
               </p>
             </>
           )}
           {error && (
-            <p role="alert" className="ledger-action__error">
-              {error}
-            </p>
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
           {result && (
-            <section
-              className={`ledger-action__result ${result.matched ? 'is-matched' : 'is-unmatched'}`}
-              aria-live="polite"
-            >
+            <section className="rounded-lg border p-4 text-sm" aria-live="polite">
               <strong>{result.matched ? '份额一致' : '份额不一致'}</strong>
               <p>
                 平台份额 {result.claimedShares} · 流水推导 {result.derivedShares}
@@ -332,17 +311,11 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
               <p>上次对账一致：{result.lastMatchedOn ?? '暂无记录'}</p>
             </section>
           )}
-          <footer className="ledger-action__footer">
-            <Button
-              type="button"
-              variant="outline"
-              className="ledger-action__secondary"
-              onClick={close}
-              disabled={busy}
-            >
+          <SheetFooter className="flex-row justify-end px-0 pb-0">
+            <Button type="button" variant="outline" onClick={close} disabled={busy}>
               取消
             </Button>
-            <Button type="submit" className="ledger-action__primary" disabled={busy}>
+            <Button type="submit" disabled={busy}>
               {busy
                 ? '处理中…'
                 : mode === 'transaction'
@@ -351,7 +324,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                     : '确认录入'
                   : '开始对账'}
             </Button>
-          </footer>
+          </SheetFooter>
         </form>
       </SheetContent>
     </Sheet>

@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { api, type PendingSubscription } from './api.ts'
 import { Button } from './components/ui/button.tsx'
 import { Input } from './components/ui/input.tsx'
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card.tsx'
+import { RadioGroup, RadioGroupItem } from './components/ui/radio-group.tsx'
+import { Alert, AlertDescription } from './components/ui/alert.tsx'
 
 /** 待确认申购独立于持仓。确认后同时刷新列表和账本指标。 */
 export function Subscriptions({
@@ -13,6 +16,7 @@ export function Subscriptions({
   onConfirmed: () => void
 }) {
   const client = useQueryClient()
+  const sourceLabel = useId()
   const [active, setActive] = useState<PendingSubscription | null>(null)
   const pending = useQuery({
     queryKey: ['subscriptions', ledgerId],
@@ -74,193 +78,184 @@ export function Subscriptions({
   if (!active && !pending.isError && !pending.data?.length) return null
 
   return (
-    <section className="subscription-panel" aria-labelledby="subscriptions-title">
-      <div className="subscription-head">
-        <div>
-          <h2 id="subscriptions-title">待确认申购</h2>
-          <p>确认成交详情后，申购才会计入持仓。</p>
-        </div>
-      </div>
-      {pending.isError ? (
-        <p role="alert" className="workspace-error">
-          {pending.error.message}{' '}
-          <Button
-            type="button"
-            variant="link"
-            className="workspace-text-button"
-            onClick={() => void pending.refetch()}
-          >
-            重试
-          </Button>
-        </p>
-      ) : pending.data?.length ? (
-        <ul className="subscription-list">
-          {pending.data.map((order) => (
-            <li key={order.id}>
-              <div>
-                <strong>{order.fundCode}</strong>
-                <span>
-                  {order.orderDate} · 申购金额 ¥
-                  {order.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              <Button
-                type="button"
-                variant="link"
-                className="workspace-text-button"
-                disabled={quote.isPending || confirm.isPending}
-                onClick={() => openOrder(order)}
-              >
-                补充确认信息
+    <Card className="my-6" aria-labelledby="subscriptions-title">
+      <CardHeader>
+        <CardTitle id="subscriptions-title">待确认申购</CardTitle>
+        <p className="text-sm text-muted-foreground">确认成交详情后，申购才会计入持仓。</p>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {pending.isError ? (
+          <Alert variant="destructive" role="alert">
+            <AlertDescription>
+              {pending.error.message}{' '}
+              <Button type="button" variant="link" onClick={() => void pending.refetch()}>
+                重试
               </Button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {active && (
-        <form className="subscription-form" onSubmit={finalize}>
-          <h3>确认 {active.fundCode} 申购</h3>
-          <p>
-            申购金额 ¥{active.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} · 下单日{' '}
-            {active.orderDate}
-          </p>
-          <label>
-            成交净值日期
-            <Input
-              type="date"
-              min={active.orderDate}
-              value={navDate}
-              disabled={confirm.isPending}
-              onChange={(e) => {
-                setNavDate(e.target.value)
-                quote.reset()
-              }}
-              required
-            />
-          </label>
-          <label>
-            同日顺序号（选填）
-            <Input
-              type="number"
-              min="0"
-              step="1"
-              value={sequence}
-              disabled={confirm.isPending}
-              onChange={(e) => setSequence(e.target.value)}
-            />
-          </label>
-          <fieldset disabled={confirm.isPending}>
-            <legend>份额来源</legend>
-            <label className="subscription-choice">
-              <input
-                type="radio"
-                name="share-source"
-                checked={mode === 'quote'}
-                onChange={() => {
-                  setMode('quote')
-                  quote.reset()
-                }}
-              />
-              按净值和实际费用计算
-            </label>
-            <label className="subscription-choice">
-              <input
-                type="radio"
-                name="share-source"
-                checked={mode === 'statement'}
-                onChange={() => {
-                  setMode('statement')
-                  quote.reset()
-                }}
-              />
-              使用成交单份额
-            </label>
-          </fieldset>
-          {mode === 'quote' ? (
-            <>
-              <label>
-                实际费用（元，免手续费填 0）
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={fee}
-                  disabled={confirm.isPending}
-                  onChange={(e) => {
-                    setFee(e.target.value)
-                    quote.reset()
-                  }}
-                  required
-                />
-              </label>
-              <Button
-                type="button"
-                variant="secondary"
-                className="workspace-button secondary"
-                disabled={!navDate || fee === '' || quote.isPending || confirm.isPending}
-                onClick={() => quote.mutate({ id: active.id, navDate, fee: Number(fee) })}
+            </AlertDescription>
+          </Alert>
+        ) : pending.data?.length ? (
+          <ul className="grid gap-3">
+            {pending.data.map((order) => (
+              <li
+                key={order.id}
+                className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 last:border-0 last:pb-0"
               >
-                查询并预览
-              </Button>
-              {quote.data && (
-                <div className="subscription-preview" role="status">
-                  {quote.data.shares == null ? (
-                    <p>{quote.data.reason ?? '无法计算份额，请核对净值日期或使用成交单份额。'}</p>
-                  ) : (
-                    <p>
-                      确认净值 {quote.data.nav}（{quote.data.navDate}），实际费用 ¥{fee}，计算份额{' '}
-                      {quote.data.shares.toFixed(4)}
-                    </p>
-                  )}
+                <div className="grid gap-1">
+                  <strong>{order.fundCode}</strong>
+                  <span>
+                    {order.orderDate} · 申购金额 ¥
+                    {order.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
-              )}
-              {quote.error && (
-                <p role="alert" className="workspace-error">
-                  {quote.error.message}
-                </p>
-              )}
-            </>
-          ) : (
-            <label>
-              成交单确认份额
+                <Button
+                  type="button"
+                  variant="link"
+                  disabled={quote.isPending || confirm.isPending}
+                  onClick={() => openOrder(order)}
+                >
+                  补充确认信息
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {active && (
+          <form className="grid gap-4 rounded-lg border p-4" onSubmit={finalize}>
+            <h3 className="font-medium">确认 {active.fundCode} 申购</h3>
+            <p className="text-sm text-muted-foreground">
+              申购金额 ¥{active.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} ·
+              下单日 {active.orderDate}
+            </p>
+            <label className="grid gap-2 text-sm font-medium">
+              成交净值日期
               <Input
-                type="number"
-                step="any"
-                value={shares}
+                type="date"
+                min={active.orderDate}
+                value={navDate}
                 disabled={confirm.isPending}
-                onChange={(e) => setShares(e.target.value)}
+                onChange={(e) => {
+                  setNavDate(e.target.value)
+                  quote.reset()
+                }}
                 required
               />
             </label>
-          )}
-          {confirm.error && (
-            <p role="alert" className="workspace-error">
-              {confirm.error.message}
-            </p>
-          )}
-          <div className="workspace-actions">
-            <Button
-              type="button"
-              variant="outline"
-              className="workspace-button secondary"
-              disabled={confirm.isPending}
-              onClick={() => setActive(null)}
-            >
-              返回
-            </Button>
-            <Button
-              type="submit"
-              className="workspace-button"
-              disabled={
-                confirm.isPending ||
-                (mode === 'quote' && (!quote.data || quote.data.shares == null))
-              }
-            >
-              {confirm.isPending ? '正在确认…' : '确认申购'}
-            </Button>
-          </div>
-        </form>
-      )}
-    </section>
+            <label className="grid gap-2 text-sm font-medium">
+              同日顺序号（选填）
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={sequence}
+                disabled={confirm.isPending}
+                onChange={(e) => setSequence(e.target.value)}
+              />
+            </label>
+            <fieldset disabled={confirm.isPending} className="grid gap-2">
+              <legend id={sourceLabel}>份额来源</legend>
+              <RadioGroup
+                aria-labelledby={sourceLabel}
+                disabled={confirm.isPending}
+                value={mode}
+                onValueChange={(value) => {
+                  setMode(value as 'quote' | 'statement')
+                  quote.reset()
+                }}
+                className="gap-3"
+              >
+                <label className="flex items-center gap-2 text-sm">
+                  <RadioGroupItem value="quote" aria-labelledby={`${sourceLabel}-quote`} />
+                  <span id={`${sourceLabel}-quote`}>按净值和实际费用计算</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <RadioGroupItem value="statement" aria-labelledby={`${sourceLabel}-statement`} />
+                  <span id={`${sourceLabel}-statement`}>使用成交单份额</span>
+                </label>
+              </RadioGroup>
+            </fieldset>
+            {mode === 'quote' ? (
+              <>
+                <label className="grid gap-2 text-sm font-medium">
+                  实际费用（元，免手续费填 0）
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={fee}
+                    disabled={confirm.isPending}
+                    onChange={(e) => {
+                      setFee(e.target.value)
+                      quote.reset()
+                    }}
+                    required
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!navDate || fee === '' || quote.isPending || confirm.isPending}
+                  onClick={() => quote.mutate({ id: active.id, navDate, fee: Number(fee) })}
+                >
+                  查询并预览
+                </Button>
+                {quote.data && (
+                  <div className="rounded-md bg-muted p-3 text-sm" role="status">
+                    {quote.data.shares == null ? (
+                      <p>{quote.data.reason ?? '无法计算份额，请核对净值日期或使用成交单份额。'}</p>
+                    ) : (
+                      <p>
+                        确认净值 {quote.data.nav}（{quote.data.navDate}），实际费用 ¥{fee}，计算份额{' '}
+                        {quote.data.shares.toFixed(4)}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {quote.error && (
+                  <Alert variant="destructive" role="alert">
+                    <AlertDescription>{quote.error.message}</AlertDescription>
+                  </Alert>
+                )}
+              </>
+            ) : (
+              <label className="grid gap-2 text-sm font-medium">
+                成交单确认份额
+                <Input
+                  type="number"
+                  step="any"
+                  value={shares}
+                  disabled={confirm.isPending}
+                  onChange={(e) => setShares(e.target.value)}
+                  required
+                />
+              </label>
+            )}
+            {confirm.error && (
+              <Alert variant="destructive" role="alert">
+                <AlertDescription>{confirm.error.message}</AlertDescription>
+              </Alert>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={confirm.isPending}
+                onClick={() => setActive(null)}
+              >
+                返回
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  confirm.isPending ||
+                  (mode === 'quote' && (!quote.data || quote.data.shares == null))
+                }
+              >
+                {confirm.isPending ? '正在确认…' : '确认申购'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </CardContent>
+    </Card>
   )
 }

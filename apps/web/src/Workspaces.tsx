@@ -2,9 +2,12 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ChevronRight, Search } from 'lucide-react'
 import { lazy, Suspense, useDeferredValue, useState } from 'react'
 import { api, type Coverage, type OverviewPosition, type Sourced } from './api.ts'
+import { Alert, AlertDescription, AlertTitle } from './components/ui/alert.tsx'
 import { Badge } from './components/ui/badge.tsx'
 import { Button } from './components/ui/button.tsx'
 import { Input } from './components/ui/input.tsx'
+import { NativeSelect, NativeSelectOption } from './components/ui/native-select.tsx'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './components/ui/card.tsx'
 import {
   Table,
   TableBody,
@@ -203,9 +206,10 @@ function FundPanel({
   onReconcile?: () => void
 }) {
   return (
-    <section
+    <Card
       id="fund-detail"
-      className="workspace-panel detail-panel"
+      className="detail-panel"
+      role="region"
       tabIndex={-1}
       aria-label="基金详情"
     >
@@ -213,9 +217,9 @@ function FundPanel({
         <>
           <Suspense
             fallback={
-              <p className="workspace-empty" role="status">
+              <CardContent className="text-muted-foreground" role="status">
                 正在打开基金详情…
-              </p>
+              </CardContent>
             }
           >
             <FundDetail
@@ -227,17 +231,17 @@ function FundPanel({
             />
           </Suspense>
           {onReconcile && (
-            <div className="detail-action">
-              <Button variant="link" className="workspace-text-button" onClick={onReconcile}>
+            <CardFooter>
+              <Button variant="link" onClick={onReconcile}>
                 核对份额
               </Button>
-            </div>
+            </CardFooter>
           )}
         </>
       ) : (
-        <p className="workspace-empty">选择一只基金查看净值与风险。</p>
+        <CardContent className="text-muted-foreground">选择一只基金查看净值与风险。</CardContent>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -313,7 +317,7 @@ export function Portfolio({
         scope="col"
         aria-sort={sort.field === field ? (sort.desc ? 'descending' : 'ascending') : 'none'}
       >
-        <Button className="table-sort" variant="ghost" onClick={() => changeSort(field)}>
+        <Button variant="ghost" onClick={() => changeSort(field)}>
           {label}
           {sort.field === field && <span aria-hidden="true">{sort.desc ? '↓' : '↑'}</span>}
         </Button>
@@ -327,9 +331,9 @@ export function Portfolio({
         <div className="workspace-page-heading">
           <h1>账本总览</h1>
         </div>
-        <p className="workspace-panel workspace-empty" role="status">
+        <Card className="workspace-empty" role="status">
           正在读取账本总览…
-        </p>
+        </Card>
       </>
     )
   if (query.isError)
@@ -338,23 +342,19 @@ export function Portfolio({
         <div className="workspace-page-heading">
           <h1>账本总览</h1>
         </div>
-        <div className="workspace-panel workspace-empty">
+        <Card className="workspace-empty">
           <p role="alert">{query.error.message}</p>
-          <Button
-            className="workspace-button secondary"
-            variant="secondary"
-            onClick={() => void query.refetch()}
-          >
+          <Button variant="secondary" onClick={() => void query.refetch()}>
             重试
           </Button>
-        </div>
+        </Card>
       </>
     )
   if (!overview)
     return (
-      <p className="workspace-panel workspace-empty" role="status">
+      <Card className="workspace-empty" role="status">
         {query.data?.reason ?? '暂无账本总览数据。'}
-      </p>
+      </Card>
     )
 
   return (
@@ -363,18 +363,26 @@ export function Portfolio({
         <div className="workspace-page-heading">
           <h1>账本总览</h1>
         </div>
-        <section className="workspace-panel overview-metrics" aria-label="账本资产和收益">
-          <OverviewMetric
-            label="基金总市值"
-            data={overview.marketValue}
-            coverage={overview.marketValueCoverage}
-          />
-          <OverviewMetric
-            label="当日收益"
-            data={overview.dailyGain}
-            coverage={overview.dailyGainCoverage}
-            signed
-          />
+        <section className="overview-metrics" aria-label="账本资产和收益">
+          <Card>
+            <CardContent>
+              <OverviewMetric
+                label="基金总市值"
+                data={overview.marketValue}
+                coverage={overview.marketValueCoverage}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <OverviewMetric
+                label="当日收益"
+                data={overview.dailyGain}
+                coverage={overview.dailyGainCoverage}
+                signed
+              />
+            </CardContent>
+          </Card>
         </section>
         {overview.valuationDate && (
           <p className="overview-date">
@@ -388,140 +396,142 @@ export function Portfolio({
           </p>
         )}
         {affected.length > 0 && (
-          <details className="workspace-warning">
-            <summary>
-              <AlertTriangle size={18} aria-hidden="true" />
-              <strong>{hasStale ? '部分净值沿用缓存' : '部分持仓数据不完整'}</strong>
-              <span>查看受影响基金</span>
-            </summary>
-            <ul>
-              {affected.map(({ fundCode, marketValue, dailyGain }) => (
-                <li key={fundCode}>
-                  <strong>{names.get(fundCode) ?? fundCode}</strong>
-                  {marketValue.value !== null && <> · 净值截至 {marketValue.dataAsOf}</>}
-                  {marketValue.stale && <> · 沿用缓存</>}
-                  {marketValue.loss && <> · {marketValue.loss}</>}
-                  {marketValue.reason && <> · {marketValue.reason}</>}
-                  {dailyGain.reason && dailyGain.reason !== marketValue.reason && (
-                    <> · 当日收益：{dailyGain.reason}</>
-                  )}
-                  {dailyGain.loss && dailyGain.loss !== marketValue.loss && (
-                    <> · {dailyGain.loss}</>
-                  )}
-                  {dailyGain.stale && !marketValue.stale && <> · 当日收益沿用缓存</>}
-                </li>
-              ))}
-            </ul>
-          </details>
+          <Alert className="mb-4" role="status">
+            <AlertTriangle aria-hidden="true" />
+            <AlertTitle>{hasStale ? '部分净值沿用缓存' : '部分持仓数据不完整'}</AlertTitle>
+            <AlertDescription>
+              <details>
+                <summary>查看受影响基金</summary>
+                <ul className="list-disc pl-4">
+                  {affected.map(({ fundCode, marketValue, dailyGain }) => (
+                    <li key={fundCode}>
+                      <strong>{names.get(fundCode) ?? fundCode}</strong>
+                      {marketValue.value !== null && <> · 净值截至 {marketValue.dataAsOf}</>}
+                      {marketValue.stale && <> · 沿用缓存</>}
+                      {marketValue.loss && <> · {marketValue.loss}</>}
+                      {marketValue.reason && <> · {marketValue.reason}</>}
+                      {dailyGain.reason && dailyGain.reason !== marketValue.reason && (
+                        <> · 当日收益：{dailyGain.reason}</>
+                      )}
+                      {dailyGain.loss && dailyGain.loss !== marketValue.loss && (
+                        <> · {dailyGain.loss}</>
+                      )}
+                      {dailyGain.stale && !marketValue.stale && <> · 当日收益沿用缓存</>}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </AlertDescription>
+          </Alert>
         )}
-        <section className="workspace-panel holdings-panel">
-          <h2>我的基金</h2>
-          {visible.length ? (
-            <Table className="holdings-table" containerClassName="holdings-scroll">
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col">基金</TableHead>
-                  <TableHead scope="col">投资方向</TableHead>
-                  {sortHeading('marketValue', '市值')}
-                  {sortHeading('dailyGain', '当日收益')}
-                  {sortHeading('unrealizedGain', '持有收益')}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.map((position) => {
-                  const { fundCode, marketValue, dailyGain, unrealizedGain, holdingGainRate } =
-                    position
-                  const isActive = active?.fundCode === fundCode
-                  return (
-                    <TableRow key={fundCode} data-selected={isActive}>
-                      <TableHead scope="row">
-                        <Button
-                          className="fund-row-button"
-                          variant="ghost"
-                          aria-pressed={isActive}
-                          onClick={() => {
-                            setSelected(fundCode)
-                            scrollToDetail()
-                          }}
-                        >
-                          <span>{names.get(fundCode) ?? fundCode}</span>
-                          {names.get(fundCode) && <small>{fundCode}</small>}
-                        </Button>
-                      </TableHead>
-                      <TableCell>
-                        <DirectionTags code={fundCode} />
-                      </TableCell>
-                      <TableCell>
-                        <Money data={marketValue} />
-                      </TableCell>
-                      <TableCell>
-                        <Money data={dailyGain} signed />
-                      </TableCell>
-                      <TableCell>
-                        {position.shares === 0 ? (
-                          <>
-                            <span
-                              className={
-                                position.realizedGain > 0
-                                  ? 'gain-positive'
-                                  : position.realizedGain < 0
-                                    ? 'gain-negative'
-                                    : undefined
-                              }
-                            >
-                              {currency.format(position.realizedGain)}
-                            </span>
-                            <span className="workspace-subtle">已实现收益</span>
-                          </>
-                        ) : (
-                          <>
-                            <Money data={unrealizedGain} signed />
-                            {holdingGainRate.value !== null && (
-                              <span className="workspace-subtle">
-                                {percentage.format(holdingGainRate.value)}
+        <Card className="holdings-panel">
+          <CardHeader>
+            <CardTitle>
+              <h2>我的基金</h2>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {visible.length ? (
+              <Table className="holdings-table" containerClassName="holdings-scroll">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col">基金</TableHead>
+                    <TableHead scope="col">投资方向</TableHead>
+                    {sortHeading('marketValue', '市值')}
+                    {sortHeading('dailyGain', '当日收益')}
+                    {sortHeading('unrealizedGain', '持有收益')}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visible.map((position) => {
+                    const { fundCode, marketValue, dailyGain, unrealizedGain, holdingGainRate } =
+                      position
+                    const isActive = active?.fundCode === fundCode
+                    return (
+                      <TableRow key={fundCode} data-state={isActive ? 'selected' : undefined}>
+                        <TableHead scope="row">
+                          <Button
+                            variant="ghost"
+                            aria-pressed={isActive}
+                            onClick={() => {
+                              setSelected(fundCode)
+                              scrollToDetail()
+                            }}
+                          >
+                            <span>{names.get(fundCode) ?? fundCode}</span>
+                            {names.get(fundCode) && <small>{fundCode}</small>}
+                          </Button>
+                        </TableHead>
+                        <TableCell>
+                          <DirectionTags code={fundCode} />
+                        </TableCell>
+                        <TableCell>
+                          <Money data={marketValue} />
+                        </TableCell>
+                        <TableCell>
+                          <Money data={dailyGain} signed />
+                        </TableCell>
+                        <TableCell>
+                          {position.shares === 0 ? (
+                            <>
+                              <span
+                                className={
+                                  position.realizedGain > 0
+                                    ? 'gain-positive'
+                                    : position.realizedGain < 0
+                                      ? 'gain-negative'
+                                      : undefined
+                                }
+                              >
+                                {currency.format(position.realizedGain)}
                               </span>
-                            )}
-                          </>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="workspace-empty holdings-empty">
-              <p>{closed.length ? '当前没有持仓。' : '账本里还没有流水。'}</p>
-              {!closed.length && (
+                              <span className="workspace-subtle">已实现收益</span>
+                            </>
+                          ) : (
+                            <>
+                              <Money data={unrealizedGain} signed />
+                              {holdingGainRate.value !== null && (
+                                <span className="workspace-subtle">
+                                  {percentage.format(holdingGainRate.value)}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="workspace-empty holdings-empty">
+                <p>{closed.length ? '当前没有持仓。' : '账本里还没有流水。'}</p>
+                {!closed.length && (
+                  <Button variant="secondary" onClick={onSearch}>
+                    <Search size={16} aria-hidden="true" />
+                    查找基金
+                  </Button>
+                )}
+              </div>
+            )}
+            {closed.length > 0 && (
+              <div className="holdings-footer">
                 <Button
-                  className="workspace-button secondary"
-                  variant="secondary"
-                  onClick={onSearch}
+                  variant="link"
+                  aria-expanded={showClosed}
+                  onClick={() => setShowClosed(!showClosed)}
                 >
-                  <Search size={16} aria-hidden="true" />
-                  查找基金
+                  {showClosed ? '收起' : '展开'}已清仓基金（{closed.length}）
+                  <ChevronRight
+                    size={15}
+                    className={showClosed ? 'is-rotated' : undefined}
+                    aria-hidden="true"
+                  />
                 </Button>
-              )}
-            </div>
-          )}
-          {closed.length > 0 && (
-            <div className="holdings-footer">
-              <Button
-                className="workspace-text-button"
-                variant="link"
-                aria-expanded={showClosed}
-                onClick={() => setShowClosed(!showClosed)}
-              >
-                {showClosed ? '收起' : '展开'}已清仓基金（{closed.length}）
-                <ChevronRight
-                  size={15}
-                  className={showClosed ? 'is-rotated' : undefined}
-                  aria-hidden="true"
-                />
-              </Button>
-            </div>
-          )}
-        </section>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
       <FundPanel
         code={active?.fundCode}
@@ -566,100 +576,94 @@ export function FundSearch({
         <h1>基金查询</h1>
       </div>
       <div className="workspace-columns">
-        <section className="workspace-panel search-panel">
-          <div className="fund-search-fields">
-            <div className="workspace-search">
-              <Search size={18} aria-hidden="true" />
-              <Input
-                type="search"
-                aria-label="基金名称、代码或拼音"
-                placeholder="输入基金名称、代码或拼音"
-                value={term}
-                onChange={(event) => setTerm(event.target.value)}
-              />
-            </div>
-            <select
-              aria-label="基金类型"
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-            >
-              <option value="">全部类型</option>
-              {(categories.data?.value ?? [])
-                .filter((item) => item.category)
-                .map((item) => (
-                  <option key={item.category} value={item.category}>
-                    {item.category}
-                  </option>
-                ))}
-            </select>
-          </div>
-          {categories.isError && (
-            <p role="status" className="search-source-note">
-              基金类型暂不可用，仍可按名称或代码搜索。
-            </p>
-          )}
-          {search.data?.stale && (
-            <p role="status" className="search-source-note">
-              搜索结果沿用缓存（{search.data.dataAsOf}）。
-            </p>
-          )}
-          {search.data?.loss && (
-            <p role="status" className="search-source-note">
-              {search.data.loss}
-            </p>
-          )}
-          {search.isPending ? (
-            <p className="workspace-empty" role="status">
-              正在查询基金…
-            </p>
-          ) : search.isError ? (
-            <div className="workspace-empty">
-              <p role="alert">{search.error.message}</p>
-              <Button
-                className="workspace-button secondary"
-                variant="secondary"
-                onClick={() => void search.refetch()}
+        <Card className="search-panel">
+          <CardContent>
+            <div className="fund-search-fields">
+              <div className="min-w-40 flex-1">
+                <Input
+                  type="search"
+                  aria-label="基金名称、代码或拼音"
+                  placeholder="输入基金名称、代码或拼音"
+                  value={term}
+                  onChange={(event) => setTerm(event.target.value)}
+                />
+              </div>
+              <NativeSelect
+                className="max-w-full"
+                aria-label="基金类型"
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
               >
-                重试
-              </Button>
+                <NativeSelectOption value="">全部类型</NativeSelectOption>
+                {(categories.data?.value ?? [])
+                  .filter((item) => item.category)
+                  .map((item) => (
+                    <NativeSelectOption key={item.category} value={item.category}>
+                      {item.category}
+                    </NativeSelectOption>
+                  ))}
+              </NativeSelect>
             </div>
-          ) : results.length ? (
-            <ul className="fund-search-list">
-              {results.map((fund) => (
-                <li key={fund.code}>
-                  <Button
-                    className="search-fund-row"
-                    variant="ghost"
-                    aria-pressed={fund.code === selected?.code}
-                    onClick={() => {
-                      setSelected(fund)
-                      scrollToDetail()
-                    }}
-                  >
-                    <span>
-                      <strong>{fund.name}</strong>
-                      <small>
-                        {fund.code}
-                        {fund.category ? ` · ${fund.category}` : ''}
-                      </small>
-                    </span>
-                    <ChevronRight size={17} aria-hidden="true" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="workspace-empty">{search.data?.reason ?? '没有找到匹配的基金。'}</p>
-          )}
-        </section>
+            {categories.isError && (
+              <p role="status" className="workspace-subtle mt-2">
+                基金类型暂不可用，仍可按名称或代码搜索。
+              </p>
+            )}
+            {search.data?.stale && (
+              <p role="status" className="workspace-subtle mt-2">
+                搜索结果沿用缓存（{search.data.dataAsOf}）。
+              </p>
+            )}
+            {search.data?.loss && (
+              <p role="status" className="workspace-subtle mt-2">
+                {search.data.loss}
+              </p>
+            )}
+            {search.isPending ? (
+              <p className="workspace-empty" role="status">
+                正在查询基金…
+              </p>
+            ) : search.isError ? (
+              <div className="workspace-empty">
+                <p role="alert">{search.error.message}</p>
+                <Button variant="secondary" onClick={() => void search.refetch()}>
+                  重试
+                </Button>
+              </div>
+            ) : results.length ? (
+              <ul className="fund-search-list mt-3">
+                {results.map((fund) => (
+                  <li key={fund.code}>
+                    <Button
+                      className="h-auto w-full justify-between"
+                      variant={fund.code === selected?.code ? 'secondary' : 'ghost'}
+                      aria-pressed={fund.code === selected?.code}
+                      onClick={() => {
+                        setSelected(fund)
+                        scrollToDetail()
+                      }}
+                    >
+                      <span className="min-w-0 text-left">
+                        <span className="block truncate">{fund.name}</span>
+                        <small className="block truncate text-muted-foreground">
+                          {fund.code}
+                          {fund.category ? ` · ${fund.category}` : ''}
+                        </small>
+                      </span>
+                      <ChevronRight size={17} aria-hidden="true" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="workspace-empty">{search.data?.reason ?? '没有找到匹配的基金。'}</p>
+            )}
+          </CardContent>
+        </Card>
         <div>
           <FundPanel code={selected?.code} name={selected?.name} />
           {selected && (
-            <Button
-              className="workspace-button search-record"
-              variant="secondary"
-              onClick={() => onRecord(selected.code)}
-            >
+            <Button variant="secondary" onClick={() => onRecord(selected.code)}>
               {ledgerId ? '录入这只基金的流水' : '新建账本后录入'}
             </Button>
           )}

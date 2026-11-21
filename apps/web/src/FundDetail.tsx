@@ -34,15 +34,29 @@ function Chart({ points, label }: { points: NavPoint[]; label: string }) {
     const element = host.current
     if (!element) return
     const chart = echarts.init(element)
+    const colorCanvas = document.createElement('canvas')
+    colorCanvas.width = colorCanvas.height = 1
+    const colorContext = colorCanvas.getContext('2d', { willReadFrequently: true })
     /** 从页面主题取颜色，确保手动切换时画布能跟随界面。 */
     function renderChart() {
       if (!element) return
       const styles = getComputedStyle(element)
-      const ink = styles.getPropertyValue('--ink').trim()
-      const muted = styles.getPropertyValue('--muted').trim()
-      const line = styles.getPropertyValue('--line').trim()
-      const accent = styles.getPropertyValue('--accent').trim()
-      const surface = styles.getPropertyValue('--surface').trim()
+      const resolveColor = (token: string, fallback: string) => {
+        const value = styles.getPropertyValue(token).trim() || fallback
+        if (!colorContext) return value
+        // shadcn 的 oklch 颜色由浏览器转换后再交给 ECharts。
+        colorContext.clearRect(0, 0, 1, 1)
+        colorContext.fillStyle = fallback
+        colorContext.fillStyle = value
+        colorContext.fillRect(0, 0, 1, 1)
+        const [r, g, b, a] = colorContext.getImageData(0, 0, 1, 1).data
+        return `rgba(${r}, ${g}, ${b}, ${(a ?? 255) / 255})`
+      }
+      const ink = resolveColor('--foreground', '#18181b')
+      const muted = resolveColor('--muted-foreground', '#71717a')
+      const line = resolveColor('--border', '#e4e4e7')
+      const accent = resolveColor('--primary', '#404040')
+      const surface = resolveColor('--popover', '#ffffff')
       const option: ChartOption = {
         animation: false,
         grid: { left: 53, right: 16, top: 15, bottom: 35 },
@@ -231,7 +245,9 @@ export default function FundDetail({ fundCode, name, ledgerId, ledgerSummary }: 
     <div className="fund-detail">
       <header className="fd-header">
         <div>
-          <h2>{name || fields?.['基金简称'] || fields?.['基金全称'] || fundCode}</h2>
+          <h2 className="text-base font-medium">
+            {name || fields?.['基金简称'] || fields?.['基金全称'] || fundCode}
+          </h2>
           <p>
             {fundCode}
             {fields?.['基金类型'] && ` · ${fields['基金类型']}`}
@@ -277,11 +293,7 @@ export default function FundDetail({ fundCode, name, ledgerId, ledgerSummary }: 
       ) : nav.isError ? (
         <div className="fd-state fd-error" role="alert">
           <p>{nav.error.message}</p>
-          <Button
-            variant="link"
-            className="workspace-text-button"
-            onClick={() => void nav.refetch()}
-          >
+          <Button variant="link" onClick={() => void nav.refetch()}>
             重试
           </Button>
         </div>
@@ -291,11 +303,7 @@ export default function FundDetail({ fundCode, name, ledgerId, ledgerSummary }: 
         <div className="fd-state">
           <p>{series?.reason ?? '该区间暂无净值数据。'}</p>
           {adjusted && nav.data.nav.value && (
-            <Button
-              variant="link"
-              className="workspace-text-button"
-              onClick={() => setAdjusted(false)}
-            >
+            <Button variant="link" onClick={() => setAdjusted(false)}>
               查看单位净值
             </Button>
           )}
