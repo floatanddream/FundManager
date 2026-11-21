@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ChevronRight, Search } from 'lucide-react'
+import { AlertTriangle, Check, ChevronRight, Search } from 'lucide-react'
 import { lazy, Suspense, useDeferredValue, useState } from 'react'
 import { api, type Coverage, type OverviewPosition, type Sourced } from './api.ts'
 import { Alert, AlertDescription, AlertTitle } from './components/ui/alert.tsx'
@@ -7,6 +7,14 @@ import { Badge } from './components/ui/badge.tsx'
 import { Button } from './components/ui/button.tsx'
 import { Input } from './components/ui/input.tsx'
 import { NativeSelect, NativeSelectOption } from './components/ui/native-select.tsx'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemSeparator,
+  ItemTitle,
+} from './components/ui/item.tsx'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './components/ui/card.tsx'
 import {
   Table,
@@ -632,28 +640,53 @@ export function FundSearch({
               </div>
             ) : results.length ? (
               <ul className="fund-search-list mt-3">
-                {results.map((fund) => (
-                  <li key={fund.code}>
-                    <Button
-                      className="h-auto w-full justify-between"
-                      variant={fund.code === selected?.code ? 'secondary' : 'ghost'}
-                      aria-pressed={fund.code === selected?.code}
-                      onClick={() => {
-                        setSelected(fund)
-                        scrollToDetail()
-                      }}
-                    >
-                      <span className="min-w-0 text-left">
-                        <span className="block truncate">{fund.name}</span>
-                        <small className="block truncate text-muted-foreground">
-                          {fund.code}
-                          {fund.category ? ` · ${fund.category}` : ''}
-                        </small>
-                      </span>
-                      <ChevronRight size={17} aria-hidden="true" />
-                    </Button>
-                  </li>
-                ))}
+                {results.map((fund, index) => {
+                  const isSelected = fund.code === selected?.code
+                  return (
+                    <li key={fund.code}>
+                      <Item
+                        render={<button type="button" />}
+                        className="cursor-pointer text-left hover:bg-muted motion-reduce:transition-none"
+                        variant={isSelected ? 'muted' : 'default'}
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          setSelected(fund)
+                          scrollToDetail()
+                        }}
+                      >
+                        <ItemContent as="span" className="min-w-0">
+                          <ItemTitle
+                            as="span"
+                            className="block w-full line-clamp-none wrap-anywhere whitespace-normal text-base"
+                          >
+                            {fund.name}
+                          </ItemTitle>
+                          <ItemDescription
+                            as="span"
+                            className="font-mono text-xs tabular-nums tracking-wide"
+                          >
+                            {fund.code}
+                          </ItemDescription>
+                        </ItemContent>
+                        {(fund.category || isSelected) && (
+                          <ItemActions as="span" className="ml-auto shrink-0">
+                            {fund.category && (
+                              <Badge
+                                variant="outline"
+                                className="max-w-[9rem] truncate"
+                                title={fund.category}
+                              >
+                                {fund.category}
+                              </Badge>
+                            )}
+                            {isSelected && <Check aria-hidden="true" className="size-4" />}
+                          </ItemActions>
+                        )}
+                      </Item>
+                      {index < results.length - 1 && <ItemSeparator className="my-1" />}
+                    </li>
+                  )
+                })}
               </ul>
             ) : (
               <p className="workspace-empty">{search.data?.reason ?? '没有找到匹配的基金。'}</p>

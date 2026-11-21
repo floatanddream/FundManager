@@ -170,6 +170,10 @@
 .fund-search-list {
   max-height: min(66vh, 660px);
   overflow-y: auto;
+  /* 给首尾选项的焦点环留出空间，筛选时固定滚动条所在列。 */
+  padding: 3px;
+  scroll-padding-block: 3px;
+  scrollbar-gutter: stable;
 }
 
 .workspace-actions {
