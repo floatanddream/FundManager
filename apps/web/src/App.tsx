@@ -117,7 +117,7 @@ function Workspace({
     if (!ledger || action?.mode !== 'transaction') return
     setAction(null)
     setNotice('流水已录入')
-    void client.invalidateQueries({ queryKey: ['positions', ledger.id] })
+    void client.invalidateQueries({ queryKey: ['ledger-overview', ledger.id] })
     void client.invalidateQueries({ queryKey: ['fund-return', ledger.id] })
   }
 
@@ -202,9 +202,11 @@ function Workspace({
           <FundSearch ledgerId={ledger?.id} onRecord={openTransaction} />
         ) : (
           <>
-            <div className="workspace-page-heading">
-              <h1>当前组合</h1>
-            </div>
+            {(ledgers.isPending || ledgers.isError || creating || !ledger) && (
+              <div className="workspace-page-heading">
+                <h1>账本总览</h1>
+              </div>
+            )}
             {ledgers.isPending ? (
               <p className="workspace-panel workspace-empty" role="status">
                 正在读取账本…

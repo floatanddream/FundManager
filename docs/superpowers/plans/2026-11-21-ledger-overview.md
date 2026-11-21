@@ -48,9 +48,9 @@
 
 **接口** `calculateDailyGain(input: DailyGainInput): number | null`。输入含 `ledgerId`、`fundCode`、`transactions`、`previousDate`、`valuationDate`、`previousNav: NavConfirmed | null`、`latestNav: NavConfirmed | null`。若某端份额为零，该端不需净值；有份额且缺对应确认净值则返回 `null`；日期、净值与参数矛盾则抛出 `TypeError`。输入净值使用品牌类型，候选事件的取数与缺录判断由任务 2 完成。
 
-- [ ] 写手算用例，覆盖申购、现金分红、折算及已清仓；确认改动前用例失败。
-- [ ] 复用现有账本推导和外部现金流函数实现区间收益。
-- [ ] 跑 `pnpm test packages/core/src/ledger/dailyGain.test.ts` 与 `pnpm typecheck`。
+- [x] 写手算用例，覆盖申购、现金分红、折算及已清仓；确认改动前用例失败。
+- [x] 复用现有账本推导和外部现金流函数实现区间收益。
+- [x] 跑 `pnpm test packages/core/src/ledger/dailyGain.test.ts` 与 `pnpm typecheck`。
 
 ## 任务 2 · 账本总览 API
 
@@ -58,19 +58,19 @@
 
 **接口** `GET /api/ledgers/:ledgerId/overview`。响应信封的 `value` 为 `{ valuationDate: string | null; previousDate: string | null; marketValue: Sourced<number>; dailyGain: Sourced<number>; marketValueCoverage: Coverage; dailyGainCoverage: Coverage; positions: OverviewPosition[] }`。`Coverage` 为 `{ included: number; total: number }`。`OverviewPosition` 沿用 `PositionView`，另加 `dailyGain: Sourced<number>` 和 `holdingGainRate: Sourced<number>`；比率是小数，由 core 计算。各金额为人民币元，`null` 意味着对应口径不可计算。
 
-- [ ] 写 API 回归，断言无账本为 404、空账本市值为 0、两只基金跨日期只汇总同日已确认项，且全赎基金当日仍进入收益汇总。用样本验证含分红和漏分红两种路径。
-- [ ] 每次查询只为每只候选基金拿一份净值历史，复用到市值、当日收益和列表。复用现有确认净值缓存与 stale/loss。查询时钟可注入，失败基金应留下原因与覆盖计数。
-- [ ] 在 core 中完成金额汇总和比率计算。Service 仅筛选、搬运与组装信封。
-- [ ] 跑总览测试和 `pnpm typecheck`，更新 `docs/api.md`。用合成流水验证示例金额。
+- [x] 写 API 回归，断言无账本为 404、空账本市值为 0、两只基金跨日期只汇总同日已确认项，且全赎基金当日仍进入收益汇总。用样本验证含分红和漏分红两种路径。
+- [x] 每次查询只为每只候选基金拿一份净值历史，复用到市值、当日收益和列表。复用现有确认净值缓存与 stale/loss。查询时钟可注入，失败基金应留下原因与覆盖计数。
+- [x] 在 core 中完成金额汇总和比率计算。Service 仅筛选、搬运与组装信封。
+- [x] 跑总览测试和 `pnpm typecheck`，更新 `docs/api.md`。用合成流水验证示例金额。
 
 ## 任务 3 · 总览和持仓表
 
 **文件** 修改 `apps/web/src/api.ts`、`Workspaces.tsx`、`App.tsx` 及工作台样式。前端组合页改为读取总览接口；成功录入后失效该账本总览缓存及对应 XIRR。
 
-- [ ] 桌面保留左右双栏。左侧上方展示「基金总市值」「当日收益」及净值日期和覆盖提示，下方是持仓表。点击基金行只更新右侧详情，保留左侧滚动位置与高亮。右侧复用现有净值图、XIRR、最大回撤和「核对份额」，并展示所选基金当日收益及持有收益。
-- [ ] 持仓表增加当日收益和持有收益。金额排序时空值始终在末尾。
-- [ ] 未出净值、仅部分确认、取数失败和没有持仓分别呈现。普通指标只显示数据截至，异常时说明原因。
-- [ ] 用样本账本在浏览器验证首次空账本、首次买入、部分确认、跨日期、同日清仓、桌面选中基金时右侧联动和窄屏横滑。跑 `pnpm --filter web build`。
+- [x] 桌面保留左右双栏。左侧上方展示「基金总市值」「当日收益」及净值日期和覆盖提示，下方是持仓表。点击基金行只更新右侧详情，保留左侧滚动位置与高亮。右侧复用现有净值图、XIRR、最大回撤和「核对份额」，并展示所选基金当日收益及持有收益。
+- [x] 持仓表增加当日收益和持有收益。金额排序时空值始终在末尾。
+- [x] 未出净值、仅部分确认、取数失败和没有持仓分别呈现。普通指标只显示数据截至，异常时说明原因。
+- [x] 用样本账本在浏览器验证首次空账本、首次买入、部分确认、跨日期、同日清仓、桌面选中基金时右侧联动和窄屏横滑。跑 `pnpm --filter web build`。
 
 ## 任务 4 · 投资方向标签
 
@@ -78,11 +78,11 @@
 
 **接口** `GET /api/funds/:fundCode/directions` 返回 `Sourced<DirectionTag[]>`。`DirectionTag` 含 `{ label: string; kind: 'index_theme' | 'broad_index' | 'reported_industry' | 'fund_category'; reportDate: string | null; reference: string }`。`reference` 为可核验的指数名称、披露来源或产品分类。指数和产品分类标签的 `reportDate` 为空，信封仍保留档案时点。行业按同一期披露权重从高到低选两项，权重单位沿用来源。
 
-- [ ] 指数或联接基金使用天天基金档案的跟踪标的，通过指数代码或已核验的完整标的名称匹配方向。用指数公司的公开编制方案核验首批映射并记录出处。基金名和通常的业绩比较基准不直接作为跟踪关系的证据。
-- [ ] 债券、货币等产品复用档案或基金目录中的明确分类，只有分类支持时才缩写为「短债」等更细标签。
-- [ ] 没有明确跟踪标的时使用 `industryAllocation`。年初本年无披露再查上年，保留实际报告期，区分无披露和取数失败。细主题归类需要有来源的主题成分和基金持仓匹配，再按覆盖率评估，留给后续扩展。
-- [ ] 验证主题指数识别、行业与主题边界、明确产品分类、跨年回退、无公开数据、上游失败。标签加载失败时只影响该列，金额和收益继续可用。
-- [ ] 更新 API 文档，跑对应测试和前端构建。保持现有端口与启动方式。
+- [x] 指数或联接基金使用天天基金档案的跟踪标的，通过指数代码或已核验的完整标的名称匹配方向。用指数公司的公开编制方案核验首批映射并记录出处。基金名和通常的业绩比较基准不直接作为跟踪关系的证据。
+- [x] 债券、货币等产品复用档案或基金目录中的明确分类，只有分类支持时才缩写为「短债」等更细标签。
+- [x] 没有明确跟踪标的时使用 `industryAllocation`。年初本年无披露再查上年，保留实际报告期，区分无披露和取数失败。细主题归类需要有来源的主题成分和基金持仓匹配，再按覆盖率评估，留给后续扩展。
+- [x] 验证主题指数识别、行业与主题边界、明确产品分类、跨年回退、无公开数据、上游失败。标签加载失败时只影响该列，金额和收益继续可用。
+- [x] 更新 API 文档，跑对应测试和前端构建。保持现有端口与启动方式。
 
 ## 后续 · 申购只填金额
 
@@ -90,6 +90,6 @@
 
 ## 交付检查
 
-- [ ] 逐项对照关键验收案例，覆盖只数、净值日期和报表口径在接口和页面中一致。
-- [ ] 跑 `pnpm test`、`pnpm typecheck`、`pnpm format:check`、`pnpm --filter web build`。
-- [ ] 分任务保存提交，最后整体审查金额、缺值、日期和任务边界。
+- [x] 逐项对照关键验收案例，覆盖只数、净值日期和报表口径在接口和页面中一致。
+- [x] 跑 `pnpm test`、`pnpm typecheck`、`pnpm format:check`、`pnpm --filter web build`。
+- [x] 分任务保存提交，最后整体审查金额、缺值、日期和任务边界。

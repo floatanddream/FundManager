@@ -20,6 +20,32 @@ export type Position = {
   cost: Sourced<number>
 }
 
+/** 账本总览的金额和覆盖只数由后端统一计算，日期对应同一估值窗口。 */
+export type OverviewPosition = Position & {
+  dailyGain: Sourced<number>
+  holdingGainRate: Sourced<number>
+}
+
+export type Coverage = { included: number; total: number }
+
+export type LedgerOverview = {
+  valuationDate: string | null
+  previousDate: string | null
+  marketValue: Sourced<number>
+  dailyGain: Sourced<number>
+  marketValueCoverage: Coverage
+  dailyGainCoverage: Coverage
+  positions: OverviewPosition[]
+}
+
+/** 主题、宽基、披露行业和基金产品分类各自保留核验依据。 */
+export type DirectionTag = {
+  label: string
+  kind: 'index_theme' | 'broad_index' | 'reported_industry' | 'fund_category'
+  reportDate: string | null
+  reference: string
+}
+
 export type Fund = { code: string; name: string; category: string }
 export type NavPoint = { date: string; value: number }
 
@@ -101,8 +127,8 @@ const fundPath = (code: string) => `/funds/${encodeURIComponent(code)}`
 export const api = {
   ledgers: (signal?: AbortSignal) => request<Sourced<Ledger[]>>('/ledgers', { signal }),
   addLedger: (name: string) => request<Sourced<Ledger>>('/ledgers', { body: { name } }),
-  positions: (id: string, signal?: AbortSignal) =>
-    request<Sourced<Position[]>>(`${ledgerPath(id)}/positions`, { signal }),
+  overview: (id: string, signal?: AbortSignal) =>
+    request<Sourced<LedgerOverview>>(`${ledgerPath(id)}/overview`, { signal }),
   funds: (query: string, category: string, signal?: AbortSignal) => {
     const params = new URLSearchParams({ q: query })
     if (category) params.set('category', category)
@@ -112,6 +138,8 @@ export const api = {
     request<Sourced<{ category: string; count: number }[]>>('/funds/categories', { signal }),
   fundInfo: (code: string, signal?: AbortSignal) =>
     request<Sourced<FundInfo>>(fundPath(code), { signal }),
+  directions: (code: string, signal?: AbortSignal) =>
+    request<Sourced<DirectionTag[]>>(`${fundPath(code)}/directions`, { signal }),
   nav: (code: string, signal?: AbortSignal) =>
     request<NavResult>(`${fundPath(code)}/nav`, { signal }),
   fundRisk: (code: string, signal?: AbortSignal) =>

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import * as echarts from 'echarts/core'
 import type { ComposeOption } from 'echarts/core'
 import { LineChart, type LineSeriesOption } from 'echarts/charts'
@@ -16,7 +17,7 @@ import './FundDetail.css'
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 type ChartOption = ComposeOption<LineSeriesOption | GridComponentOption | TooltipComponentOption>
-type Props = { fundCode: string; name?: string; ledgerId?: string }
+type Props = { fundCode: string; name?: string; ledgerId?: string; ledgerSummary?: ReactNode }
 const ranges = [
   [1, '1月'],
   [3, '3月'],
@@ -46,6 +47,7 @@ function Chart({ points, label }: { points: NavPoint[]; label: string }) {
         grid: { left: 53, right: 16, top: 15, bottom: 35 },
         tooltip: {
           trigger: 'axis',
+          confine: true,
           backgroundColor: surface,
           borderColor: line,
           textStyle: { color: ink },
@@ -185,8 +187,9 @@ function startOfRange(date: string, months: number) {
  * 查看基金净值和风险，账本内的基金另显示个人 XIRR。
  *
  * @param props.ledgerId 省略时只查询公开市场数据。
+ * @param props.ledgerSummary 账本提供同一净值日的市值和收益，基金查询可以省略。
  */
-export default function FundDetail({ fundCode, name, ledgerId }: Props) {
+export default function FundDetail({ fundCode, name, ledgerId, ledgerSummary }: Props) {
   const [adjusted, setAdjusted] = useState(true)
   const [range, setRange] = useState<(typeof ranges)[number][0]>(3)
   const info = useQuery({
@@ -235,6 +238,7 @@ export default function FundDetail({ fundCode, name, ledgerId }: Props) {
         </div>
       </header>
 
+      {ledgerSummary}
       <div className="fd-chart-controls">
         <div className="fd-segments" role="group" aria-label="净值口径">
           <button aria-pressed={adjusted} onClick={() => setAdjusted(true)}>

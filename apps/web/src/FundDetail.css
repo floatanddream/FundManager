@@ -56,6 +56,8 @@
 /* 用淡入提示净值口径或区间已变更，图形本身保持实际数据点。 */
 .fund-detail-chart {
   animation: nav-reveal 200ms ease-out;
+  /* 保持画布在容器内，等 ResizeObserver 完成窄屏重绘。 */
+  overflow-x: clip;
 }
 
 @keyframes nav-reveal {
