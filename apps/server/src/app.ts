@@ -9,6 +9,7 @@ import { createReconcileRepository } from './repository/reconcileRepository.ts'
 import { createTransactionRepository } from './repository/transactionRepository.ts'
 import { registerLedgerRoutes } from './routes/ledgers.ts'
 import { registerMarketFundRoutes } from './routes/marketFunds.ts'
+import { registerOverviewRoutes } from './routes/overview.ts'
 import { registerPortfolioRoutes } from './routes/portfolio.ts'
 import { registerPositionRoutes } from './routes/positions.ts'
 import { registerReturnRoutes } from './routes/returns.ts'
@@ -53,6 +54,11 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   const transactionRepository = createTransactionRepository(deps.db)
   const ledgerRepository = createLedgerRepository(deps.db)
   registerPositionRoutes(app, { transactionRepository, dataSource: deps.dataSource })
+  registerOverviewRoutes(app, {
+    ledgerRepository,
+    transactionRepository,
+    dataSource: deps.dataSource,
+  })
   registerReturnRoutes(app, { transactionRepository, dataSource: deps.dataSource })
   registerPortfolioRoutes(app, { transactionRepository, dataSource: deps.dataSource })
   registerTransactionRoutes(app, {
