@@ -61,6 +61,26 @@ export type TransactionInput = {
   note?: string
 }
 
+export type PendingSubscription = {
+  id: string
+  fundCode: string
+  orderDate: string
+  amount: number
+}
+export type SubscriptionQuote = {
+  shares: number | null
+  nav: number | null
+  navDate: string
+  reason: string | null
+}
+export type ConfirmedSubscription = {
+  id: string
+  fundCode: string
+  date: string
+  sharesDelta: number
+  status: 'confirmed'
+}
+
 type FundInfo = {
   fields: Record<string, string>
   benchmark: string | null
@@ -152,6 +172,24 @@ export const api = {
     }),
   addTransaction: (id: string, body: TransactionInput) =>
     request<Sourced<unknown>>(`${ledgerPath(id)}/transactions`, { body }),
+  subscriptions: (id: string, signal?: AbortSignal) =>
+    request<PendingSubscription[]>(`${ledgerPath(id)}/subscriptions`, { signal }),
+  addSubscription: (id: string, body: { fundCode: string; orderDate: string; amount: number }) =>
+    request<PendingSubscription>(`${ledgerPath(id)}/subscriptions`, { body }),
+  quoteSubscription: (id: string, subscriptionId: string, body: { navDate: string; fee: number }) =>
+    request<SubscriptionQuote>(
+      `${ledgerPath(id)}/subscriptions/${encodeURIComponent(subscriptionId)}/quote`,
+      { body },
+    ),
+  confirmSubscription: (
+    id: string,
+    subscriptionId: string,
+    body: { navDate: string; fee?: number; shares?: number; sequence?: number },
+  ) =>
+    request<ConfirmedSubscription>(
+      `${ledgerPath(id)}/subscriptions/${encodeURIComponent(subscriptionId)}/confirm`,
+      { body },
+    ),
   reconcile: (id: string, body: { fundCode: string; claimedShares: number; asOf?: string }) =>
     request<Sourced<ReconcileResult>>(`${ledgerPath(id)}/reconcile`, { body }),
 }

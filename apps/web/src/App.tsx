@@ -19,6 +19,9 @@ import {
 import './App.css'
 
 const LedgerAction = lazy(() => import('./LedgerAction.tsx'))
+const Subscriptions = lazy(() =>
+  import('./Subscriptions.tsx').then((module) => ({ default: module.Subscriptions })),
+)
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: false } },
 })
@@ -113,9 +116,15 @@ function Workspace({
   }
 
   /** 流水写入后同时刷新持仓和 XIRR，避免两处展示不同版本的账本。 */
-  function saved() {
+  function saved(result: 'pending-subscription' | 'transaction') {
     if (!ledger || action?.mode !== 'transaction') return
     setAction(null)
+    if (result === 'pending-subscription') {
+      setTab('portfolio')
+      setNotice('已保存待确认申购')
+      void client.invalidateQueries({ queryKey: ['subscriptions', ledger.id] })
+      return
+    }
     setNotice('流水已录入')
     void client.invalidateQueries({ queryKey: ['ledger-overview', ledger.id] })
     void client.invalidateQueries({ queryKey: ['fund-return', ledger.id] })
@@ -230,15 +239,24 @@ function Workspace({
                 onCancel={ledger ? () => setCreating(false) : undefined}
               />
             ) : (
-              <Portfolio
-                key={ledger.id}
-                ledgerId={ledger.id}
-                onSearch={() => setTab('funds')}
-                onReconcile={(fundCode) => {
-                  setNotice('')
-                  setAction({ mode: 'reconcile', fundCode })
-                }}
-              />
+              <>
+                <Suspense fallback={<p className="workspace-subtle">正在读取待确认申购…</p>}>
+                  <Subscriptions
+                    key={ledger.id}
+                    ledgerId={ledger.id}
+                    onConfirmed={() => setNotice('申购已确认入账')}
+                  />
+                </Suspense>
+                <Portfolio
+                  key={ledger.id}
+                  ledgerId={ledger.id}
+                  onSearch={() => setTab('funds')}
+                  onReconcile={(fundCode) => {
+                    setNotice('')
+                    setAction({ mode: 'reconcile', fundCode })
+                  }}
+                />
+              </>
             )}
           </>
         )}

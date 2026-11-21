@@ -596,6 +596,121 @@ button:disabled {
   line-height: 1;
 }
 
+.subscription-panel {
+  margin-bottom: 16px;
+  padding: 17px 19px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.subscription-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.subscription-head h2 {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+.subscription-head p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.subscription-list {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.subscription-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+}
+.subscription-list li + li {
+  border-top: 1px solid var(--line);
+}
+.subscription-list li div {
+  display: grid;
+  gap: 3px;
+}
+.subscription-list li span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.subscription-form {
+  display: grid;
+  gap: 11px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+  max-width: 540px;
+}
+.subscription-form h3 {
+  font-size: 16px;
+}
+.subscription-form > p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.subscription-form label {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.subscription-form input:not([type='radio']) {
+  width: 100%;
+  min-height: 39px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.subscription-form fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  border: 0;
+  padding: 0;
+}
+.subscription-form legend {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.subscription-form .subscription-choice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 500;
+}
+.subscription-preview {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  font-variant-numeric: tabular-nums;
+}
+.subscription-preview p {
+  font-size: 13px;
+}
+@media (max-width: 590px) {
+  .subscription-panel {
+    padding: 14px;
+  }
+  .subscription-head {
+    align-items: flex-start;
+  }
+  .subscription-list li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .search-panel {
   overflow: hidden;
 }

@@ -7,7 +7,7 @@ type Props = {
   ledgerId: string
   fundCode?: string
   onClose: () => void
-  onSaved: () => void
+  onSaved: (result: 'pending-subscription' | 'transaction') => void
 }
 
 const kinds = [
@@ -18,11 +18,8 @@ const kinds = [
   ['split', '份额折算'],
 ] as const
 
-/** 日期输入使用本地日历日，避免午夜附近转成 UTC 后偏移一天。 */
-const today = () => {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-}
+/** 场外基金的账本日期统一按中国时区，海外浏览器也默认到同一个交易日期。 */
+const today = () => new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
 /**
  * 使用原生模态抽屉录入流水或核对份额。
@@ -34,8 +31,9 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
   const panel = useRef<HTMLElement>(null)
   const closing = useRef(false)
   const [code, setCode] = useState(fundCode)
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(today)
   const [kind, setKind] = useState<TransactionInput['kind']>('subscribe')
+  const [hasStatement, setHasStatement] = useState(false)
   const [amount, setAmount] = useState('')
   const [shares, setShares] = useState('')
   const [ratio, setRatio] = useState('')
@@ -46,6 +44,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<Awaited<ReturnType<typeof api.reconcile>>['value']>(null)
+  const isSubscriptionDraft = kind === 'subscribe' && !hasStatement
 
   useEffect(() => {
     const element = dialog.current
@@ -96,6 +95,15 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
         })
         setResult(response.value)
       } else {
+        if (isSubscriptionDraft) {
+          await api.addSubscription(ledgerId, {
+            fundCode: code.trim(),
+            orderDate: date,
+            amount: Number(amount),
+          })
+          dismiss(() => onSaved('pending-subscription'))
+          return
+        }
         // 用户按常用的正数填写，出入账方向按 API 约定在提交时转换。
         const input: TransactionInput = {
           fundCode: code.trim(),
@@ -113,7 +121,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                 : {}),
         }
         await api.addTransaction(ledgerId, input)
-        dismiss(onSaved)
+        dismiss(() => onSaved('transaction'))
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '操作失败，请稍后重试。')
@@ -122,10 +130,13 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
     }
   }
 
-  const needsShares = kind === 'subscribe' || kind === 'redeem' || kind === 'dividend_reinvest'
+  const needsShares =
+    kind === 'redeem' || kind === 'dividend_reinvest' || (kind === 'subscribe' && hasStatement)
   const direction =
     kind === 'subscribe'
-      ? `将写入：金额 −${amount || '0'}，份额 +${shares || '0'}。`
+      ? isSubscriptionDraft
+        ? '先保存申购金额，等确认净值或回单可用后再入账。'
+        : `按回单入账，金额 −${amount || '0'}，增加 ${shares || '0'} 份。`
       : kind === 'redeem'
         ? `将写入：到账金额 +${amount || '0'}，份额 −${shares || '0'}。`
         : kind === 'dividend_cash'
@@ -181,7 +192,10 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                 流水类型
                 <select
                   value={kind}
-                  onChange={(e) => setKind(e.target.value as TransactionInput['kind'])}
+                  onChange={(e) => {
+                    setKind(e.target.value as TransactionInput['kind'])
+                    setHasStatement(false)
+                  }}
                 >
                   {kinds.map(([value, label]) => (
                     <option key={value} value={value}>
@@ -190,8 +204,21 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                   ))}
                 </select>
               </label>
+              {kind === 'subscribe' && (
+                <button
+                  className="workspace-text-button"
+                  type="button"
+                  onClick={() => setHasStatement(!hasStatement)}
+                >
+                  {hasStatement ? '返回金额申购' : '已有回单，直接入账'}
+                </button>
+              )}
               <label>
-                发生日期
+                {isSubscriptionDraft
+                  ? '交易日期'
+                  : kind === 'subscribe'
+                    ? '成交净值日期'
+                    : '发生日期'}
                 <input
                   type="date"
                   value={date}
@@ -210,7 +237,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                         : '红利再投金额'}
                   <input
                     type="number"
-                    min="0"
+                    min={kind === 'subscribe' ? '0.01' : '0'}
                     step="0.01"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
@@ -220,7 +247,11 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
               )}
               {needsShares && (
                 <label>
-                  {kind === 'redeem' ? '赎回份额' : '增加份额'}
+                  {kind === 'subscribe'
+                    ? '回单确认份额'
+                    : kind === 'redeem'
+                      ? '赎回份额'
+                      : '增加份额'}
                   <input
                     type="number"
                     min="0"
@@ -245,25 +276,29 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                   />
                 </label>
               )}
-              <label>
-                同日顺序号
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={sequence}
-                  onChange={(e) => setSequence(e.target.value)}
-                  required
-                />
-              </label>
-              <p className="ledger-action__hint">
-                同一天多笔流水的序号从 0 起且不能重复。默认
-                0，可按实际先后调整。若已有一笔旧流水未编号，补录在它之后时请填 1 或更大。
-              </p>
-              <label>
-                备注 <span className="ledger-action__optional">选填</span>
-                <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
-              </label>
+              {!isSubscriptionDraft && (
+                <>
+                  <label>
+                    同日顺序号
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={sequence}
+                      onChange={(e) => setSequence(e.target.value)}
+                      required
+                    />
+                  </label>
+                  <p className="ledger-action__hint">
+                    同一天多笔流水的序号从 0 起且不能重复。默认
+                    0，可按实际先后调整。若已有一笔旧流水未编号，补录在它之后时请填 1 或更大。
+                  </p>
+                  <label>
+                    备注 <span className="ledger-action__optional">选填</span>
+                    <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
+                  </label>
+                </>
+              )}
               <p className="ledger-action__direction">{direction}</p>
             </>
           ) : (
@@ -316,7 +351,13 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
               取消
             </button>
             <button type="submit" className="ledger-action__primary" disabled={busy}>
-              {busy ? '处理中…' : mode === 'transaction' ? '确认录入' : '开始对账'}
+              {busy
+                ? '处理中…'
+                : mode === 'transaction'
+                  ? isSubscriptionDraft
+                    ? '保存待确认'
+                    : '确认录入'
+                  : '开始对账'}
             </button>
           </footer>
         </form>
