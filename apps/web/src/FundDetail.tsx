@@ -112,19 +112,27 @@ function Chart({ points, label }: { points: NavPoint[]; label: string }) {
 }
 
 /** 在数字旁保留数据时点与降级说明，展开后可追溯来源。 */
-function DataSource({ data }: { data?: Sourced<unknown> }) {
+function DataSource({
+  data,
+  showSource = true,
+}: {
+  data?: Sourced<unknown>
+  showSource?: boolean
+}) {
   if (!data) return null
   return (
     <div className="fd-source">
       {data.value !== null && <span>数据截至 {data.dataAsOf}</span>}
       {data.stale && <span className="fd-warning">沿用缓存</span>}
       {data.loss && <p className="fd-warning">{data.loss}</p>}
-      <details>
-        <summary>查看来源</summary>
-        <p>
-          {data.source} · 抓取于 {data.capturedAt.replace('T', ' ')}
-        </p>
-      </details>
+      {showSource && (
+        <details>
+          <summary>查看来源</summary>
+          <p>
+            {data.source} · 抓取于 {data.capturedAt.replace('T', ' ')}
+          </p>
+        </details>
+      )}
     </div>
   )
 }
@@ -158,7 +166,7 @@ function Metric({
         </p>
       )}
       {data?.reason && <p>{data.reason}</p>}
-      <DataSource data={data} />
+      <DataSource data={data} showSource={false} />
     </div>
   )
 }
