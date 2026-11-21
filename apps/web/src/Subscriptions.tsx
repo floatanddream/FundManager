@@ -1,19 +1,37 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
-import { api, type PendingSubscription } from './api.ts'
+import { api, type LedgerOverview, type PendingSubscription, type Sourced } from './api.ts'
 import { Button } from './components/ui/button.tsx'
 import { Input } from './components/ui/input.tsx'
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card.tsx'
 import { RadioGroup, RadioGroupItem } from './components/ui/radio-group.tsx'
 import { Alert, AlertDescription } from './components/ui/alert.tsx'
 
+export type OverviewMotion = { id: string; marketValue: boolean; dailyGain: boolean }
+
+const currency = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' })
+
+/** 只有金额展示实际发生变化时才触发反馈，净值缺失继续由原状态提示。 */
+function amountChanged(oldAmount: number | null, newAmount: number | null): boolean {
+  return (
+    newAmount !== null &&
+    (oldAmount === null || currency.format(oldAmount) !== currency.format(newAmount))
+  )
+}
+
 /** 待确认申购独立于持仓。确认后同时刷新列表和账本指标。 */
 export function Subscriptions({
   ledgerId,
   onConfirmed,
+  onOverviewChanged,
+  arrivingDraftId,
+  onDraftArrivalEnd,
 }: {
   ledgerId: string
   onConfirmed: () => void
+  onOverviewChanged: (motion: OverviewMotion) => void
+  arrivingDraftId?: string
+  onDraftArrivalEnd: (id: string) => void
 }) {
   const client = useQueryClient()
   const sourceLabel = useId()
@@ -37,12 +55,26 @@ export function Subscriptions({
       shares?: number
       sequence?: number
     }) => api.confirmSubscription(ledgerId, id, body),
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       setActive(null)
       onConfirmed()
+      const overviewKey = ['ledger-overview', ledgerId]
+      const previous = client.getQueryData<Sourced<LedgerOverview>>(overviewKey)?.value
+      const refreshOverview = client
+        .invalidateQueries({ queryKey: overviewKey }, { throwOnError: true })
+        .then(() => {
+          const current = client.getQueryData<Sourced<LedgerOverview>>(overviewKey)?.value
+          if (!previous || !current) return
+          const marketValue = amountChanged(previous.marketValue.value, current.marketValue.value)
+          const dailyGain = amountChanged(previous.dailyGain.value, current.dailyGain.value)
+          if (marketValue || dailyGain) onOverviewChanged({ id: saved.id, marketValue, dailyGain })
+        })
+        .catch(() => {
+          // 总览显示自己的取数错误。已确认的流水保持成功状态。
+        })
       await Promise.all([
         client.invalidateQueries({ queryKey: ['subscriptions', ledgerId] }),
-        client.invalidateQueries({ queryKey: ['ledger-overview', ledgerId] }),
+        refreshOverview,
         client.invalidateQueries({ queryKey: ['fund-return', ledgerId] }),
         client.invalidateQueries({ queryKey: ['portfolio-risk', ledgerId] }),
       ])
@@ -98,6 +130,14 @@ export function Subscriptions({
             {pending.data.map((order) => (
               <li
                 key={order.id}
+                data-draft-arrival={order.id === arrivingDraftId ? 'true' : undefined}
+                onAnimationEnd={
+                  order.id === arrivingDraftId
+                    ? (event) => {
+                        if (event.target === event.currentTarget) onDraftArrivalEnd(order.id)
+                      }
+                    : undefined
+                }
                 className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 last:border-0 last:pb-0"
               >
                 <div className="grid gap-1">

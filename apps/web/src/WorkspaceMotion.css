@@ -1,0 +1,114 @@
+/* Base Nova feedback: brief and restrained, with no movement under reduced motion. */
+.fund-search-option,
+.holdings-table tbody tr {
+  transition: background-color 120ms ease;
+}
+
+.checked-fund-mark {
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+button[aria-pressed='true'] .checked-fund-mark {
+  opacity: 1;
+}
+.fund-search-results {
+  animation: workspace-results-in 140ms ease-out both;
+}
+
+.confirmed-metric-card {
+  position: relative;
+  isolation: isolate;
+}
+.confirmation-overlay {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--foreground) 9%, transparent);
+  animation: workspace-confirmed 420ms ease-out both;
+}
+
+.fund-search-skeleton {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.fund-search-skeleton span {
+  height: 3.5rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--muted) 75%, transparent);
+  animation: workspace-skeleton 1.1s ease-in-out infinite alternate;
+}
+.fund-search-skeleton span:nth-child(2) {
+  animation-delay: 100ms;
+}
+.fund-search-skeleton span:nth-child(3) {
+  animation-delay: 200ms;
+}
+
+.direction-label summary,
+.workspace-disclosure {
+  cursor: pointer;
+}
+.workspace-disclosure {
+  list-style: none;
+}
+.workspace-disclosure::-webkit-details-marker {
+  display: none;
+}
+.direction-label summary::after,
+.workspace-disclosure::after {
+  content: '⌄';
+  display: inline-block;
+  margin-inline-start: 0.25rem;
+  color: var(--muted-foreground);
+  transition: transform 140ms ease;
+}
+.direction-label[open] summary::after,
+details[open] > .workspace-disclosure::after {
+  transform: rotate(180deg);
+}
+
+@keyframes workspace-results-in {
+  from {
+    opacity: 0.65;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes workspace-skeleton {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 0.85;
+  }
+}
+@keyframes workspace-confirmed {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fund-search-option,
+  .holdings-table tbody tr,
+  .checked-fund-mark {
+    transition: none;
+  }
+  .fund-search-results,
+  .fund-search-skeleton span {
+    animation: none;
+  }
+  .confirmation-overlay {
+    display: none;
+  }
+  .direction-label summary::after,
+  .workspace-disclosure::after {
+    transition: none;
+  }
+}

@@ -8,12 +8,14 @@ import {
 import { Plus, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { api } from './api.ts'
+import { api, type PendingSubscription } from './api.ts'
 import { Alert, AlertDescription, AlertTitle } from './components/ui/alert.tsx'
 import { Button } from './components/ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card.tsx'
 import { Input } from './components/ui/input.tsx'
+import type { LedgerSaveResult } from './LedgerAction.tsx'
 import { NativeSelect, NativeSelectOption } from './components/ui/native-select.tsx'
+import type { OverviewMotion } from './Subscriptions.tsx'
 import { FundSearch, Portfolio } from './Workspaces.tsx'
 import {
   applyTheme,
@@ -106,11 +108,25 @@ function Workspace({
   const [creating, setCreating] = useState(false)
   const [action, setAction] = useState<Action | null>(null)
   const [notice, setNotice] = useState('')
+  const [draftArrival, setDraftArrival] = useState<{ ledgerId: string; id: string }>()
+  const [overviewMotion, setOverviewMotion] = useState<OverviewMotion & { ledgerId: string }>()
   const client = useQueryClient()
 
   const ledgers = useQuery({ queryKey: ['ledgers'], queryFn: ({ signal }) => api.ledgers(signal) })
   const list = ledgers.data?.value ?? []
   const ledger = list.find((entry) => entry.id === ledgerChoice) ?? list[0]
+
+  useEffect(() => {
+    if (!draftArrival) return
+    const timer = window.setTimeout(() => setDraftArrival(undefined), 2000)
+    return () => window.clearTimeout(timer)
+  }, [draftArrival])
+
+  useEffect(() => {
+    if (!overviewMotion) return
+    const timer = window.setTimeout(() => setOverviewMotion(undefined), 600)
+    return () => window.clearTimeout(timer)
+  }, [overviewMotion])
 
   /** 流水必须属于一个账本，首次使用时先引导建账。 */
   function openTransaction(fundCode?: string) {
@@ -124,13 +140,21 @@ function Workspace({
   }
 
   /** 流水写入后同时刷新持仓和 XIRR，避免两处展示不同版本的账本。 */
-  function saved(result: 'pending-subscription' | 'transaction') {
+  function saved(result: LedgerSaveResult) {
     if (!ledger || action?.mode !== 'transaction') return
     setAction(null)
-    if (result === 'pending-subscription') {
+    if (result.kind === 'pending-subscription') {
       setTab('portfolio')
       setNotice('已保存待确认申购')
-      void client.invalidateQueries({ queryKey: ['subscriptions', ledger.id] })
+      setDraftArrival({ ledgerId: ledger.id, id: result.draft.id })
+      const subscriptionsKey = ['subscriptions', ledger.id]
+      // 已加载的列表可以先插入服务器返回的草稿，随后用完整列表校准。
+      client.setQueryData<PendingSubscription[]>(subscriptionsKey, (orders) =>
+        orders && !orders.some((order) => order.id === result.draft.id)
+          ? [...orders, result.draft]
+          : orders,
+      )
+      void client.invalidateQueries({ queryKey: subscriptionsKey })
       return
     }
     setNotice('流水已录入')
@@ -197,7 +221,15 @@ function Workspace({
             className="theme-select"
             aria-label="主题模式"
             value={themePreference}
-            onChange={(event) => onThemeChange(event.target.value as ThemePreference)}
+            onChange={(event) => {
+              onThemeChange(event.target.value as ThemePreference)
+              if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                event.currentTarget.animate([{ opacity: 0.8 }, { opacity: 1 }], {
+                  duration: 150,
+                  easing: 'ease-out',
+                })
+              }
+            }}
           >
             <NativeSelectOption value="system">跟随系统</NativeSelectOption>
             <NativeSelectOption value="light">亮色</NativeSelectOption>
@@ -257,11 +289,23 @@ function Workspace({
                     key={ledger.id}
                     ledgerId={ledger.id}
                     onConfirmed={() => setNotice('申购已确认入账')}
+                    onOverviewChanged={(motion) =>
+                      setOverviewMotion({ ...motion, ledgerId: ledger.id })
+                    }
+                    arrivingDraftId={
+                      draftArrival?.ledgerId === ledger.id ? draftArrival.id : undefined
+                    }
+                    onDraftArrivalEnd={(id) =>
+                      setDraftArrival((current) => (current?.id === id ? undefined : current))
+                    }
                   />
                 </Suspense>
                 <Portfolio
                   key={ledger.id}
                   ledgerId={ledger.id}
+                  confirmedMotion={
+                    overviewMotion?.ledgerId === ledger.id ? overviewMotion : undefined
+                  }
                   onSearch={() => setTab('funds')}
                   onReconcile={(fundCode) => {
                     setNotice('')

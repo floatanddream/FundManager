@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { api, type TransactionInput } from './api.ts'
+import { api, type PendingSubscription, type TransactionInput } from './api.ts'
 import { Button } from './components/ui/button.tsx'
 import { Input } from './components/ui/input.tsx'
 import {
@@ -12,12 +12,15 @@ import {
 import { NativeSelect, NativeSelectOption } from './components/ui/native-select.tsx'
 import { Alert, AlertDescription } from './components/ui/alert.tsx'
 
+export type LedgerSaveResult =
+  { kind: 'pending-subscription'; draft: PendingSubscription } | { kind: 'transaction' }
+
 type Props = {
   mode: 'transaction' | 'reconcile'
   ledgerId: string
   fundCode?: string
   onClose: () => void
-  onSaved: (result: 'pending-subscription' | 'transaction') => void
+  onSaved: (result: LedgerSaveResult) => void
 }
 
 const kinds = [
@@ -85,12 +88,12 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
         setResult(response.value)
       } else {
         if (isSubscriptionDraft) {
-          await api.addSubscription(ledgerId, {
+          const draft = await api.addSubscription(ledgerId, {
             fundCode: code.trim(),
             orderDate: date,
             amount: Number(amount),
           })
-          dismiss(() => onSaved('pending-subscription'))
+          dismiss(() => onSaved({ kind: 'pending-subscription', draft }))
           return
         }
         // 用户按常用的正数填写，出入账方向按 API 约定在提交时转换。
@@ -110,7 +113,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                 : {}),
         }
         await api.addTransaction(ledgerId, input)
-        dismiss(() => onSaved('transaction'))
+        dismiss(() => onSaved({ kind: 'transaction' }))
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '操作失败，请稍后重试。')

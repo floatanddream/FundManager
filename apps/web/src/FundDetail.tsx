@@ -18,7 +18,13 @@ import './FundDetail.css'
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 type ChartOption = ComposeOption<LineSeriesOption | GridComponentOption | TooltipComponentOption>
-type Props = { fundCode: string; name?: string; ledgerId?: string; ledgerSummary?: ReactNode }
+type Props = {
+  fundCode: string
+  name?: string
+  ledgerId?: string
+  ledgerSummary?: ReactNode
+  animateEntry?: boolean
+}
 const ranges = [
   [1, '1月'],
   [3, '3月'],
@@ -27,7 +33,15 @@ const ranges = [
 ] as const
 
 /** 用同一组净值点绘图和生成无障碍摘要，避免读屏信息与图形不一致。 */
-function Chart({ points, label }: { points: NavPoint[]; label: string }) {
+function Chart({
+  points,
+  label,
+  rangeMotion,
+}: {
+  points: NavPoint[]
+  label: string
+  rangeMotion?: number
+}) {
   const host = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -67,6 +81,7 @@ function Chart({ points, label }: { points: NavPoint[]; label: string }) {
           borderColor: line,
           textStyle: { color: ink },
           valueFormatter: (value) => Number(value).toFixed(4),
+          axisPointer: { type: 'line', snap: true, lineStyle: { color: muted, type: 'dashed' } },
         },
         xAxis: {
           type: 'category',
@@ -92,8 +107,14 @@ function Chart({ points, label }: { points: NavPoint[]; label: string }) {
             name: label,
             data: points.map((point) => point.value),
             showSymbol: points.length === 1,
+            symbolSize: 7,
             lineStyle: { width: 2, color: accent },
             itemStyle: { color: accent },
+            emphasis: {
+              focus: 'series',
+              scale: 1.7,
+              itemStyle: { borderColor: surface, borderWidth: 2 },
+            },
           },
         ],
       }
@@ -115,6 +136,22 @@ function Chart({ points, label }: { points: NavPoint[]; label: string }) {
       chart.dispose()
     }
   }, [label, points])
+
+  // 曲线已经按实值绘制完成。月份切换只淡入画布，不插值生成中间净值。
+  useEffect(() => {
+    const element = host.current
+    if (
+      !element ||
+      rangeMotion === undefined ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    )
+      return
+    const animation = element.animate([{ opacity: 0.55 }, { opacity: 1 }], {
+      duration: 170,
+      easing: 'ease-out',
+    })
+    return () => animation.cancel()
+  }, [rangeMotion])
 
   const first = points[0]!
   const last = points.at(-1)!
@@ -204,9 +241,16 @@ function startOfRange(date: string, months: number) {
  * @param props.ledgerId 省略时只查询公开市场数据。
  * @param props.ledgerSummary 账本提供同一净值日的市值和收益，基金查询可以省略。
  */
-export default function FundDetail({ fundCode, name, ledgerId, ledgerSummary }: Props) {
+export default function FundDetail({
+  fundCode,
+  name,
+  ledgerId,
+  ledgerSummary,
+  animateEntry,
+}: Props) {
   const [adjusted, setAdjusted] = useState(true)
   const [range, setRange] = useState<(typeof ranges)[number][0]>(3)
+  const [rangeMotion, setRangeMotion] = useState<number>()
   const info = useQuery({
     queryKey: ['fund-info', fundCode],
     queryFn: ({ signal }) => api.fundInfo(fundCode, signal),
@@ -241,6 +285,12 @@ export default function FundDetail({ fundCode, name, ledgerId, ledgerSummary }: 
   const fields = info.data?.value?.fields
   const details = info.data?.value
 
+  function selectBasis(next: boolean) {
+    if (next === adjusted) return
+    setRangeMotion(undefined)
+    setAdjusted(next)
+  }
+
   return (
     <div className="fund-detail">
       <header className="fd-header">
@@ -255,116 +305,123 @@ export default function FundDetail({ fundCode, name, ledgerId, ledgerSummary }: 
         </div>
       </header>
 
-      {ledgerSummary}
-      <div className="fd-chart-controls">
-        <div className="fd-segments" role="group" aria-label="净值口径">
-          <Button
-            variant={adjusted ? 'secondary' : 'ghost'}
-            aria-pressed={adjusted}
-            onClick={() => setAdjusted(true)}
-          >
-            复权净值
-          </Button>
-          <Button
-            variant={!adjusted ? 'secondary' : 'ghost'}
-            aria-pressed={!adjusted}
-            onClick={() => setAdjusted(false)}
-          >
-            单位净值
-          </Button>
-        </div>
-        <div className="fd-segments" role="group" aria-label="图表区间">
-          {ranges.map(([months, title]) => (
+      <div className={animateEntry ? 'fd-entry' : undefined}>
+        {ledgerSummary}
+        <div className="fd-chart-controls">
+          <div className="fd-segments" role="group" aria-label="净值口径">
             <Button
-              key={months}
-              variant={range === months ? 'secondary' : 'ghost'}
-              aria-pressed={range === months}
-              onClick={() => setRange(months)}
+              variant={adjusted ? 'secondary' : 'ghost'}
+              aria-pressed={adjusted}
+              onClick={() => selectBasis(true)}
             >
-              {title}
+              复权净值
             </Button>
-          ))}
-        </div>
-      </div>
-      {nav.isPending ? (
-        <div className="fd-state" role="status">
-          正在读取净值…
-        </div>
-      ) : nav.isError ? (
-        <div className="fd-state fd-error" role="alert">
-          <p>{nav.error.message}</p>
-          <Button variant="link" onClick={() => void nav.refetch()}>
-            重试
-          </Button>
-        </div>
-      ) : points.length ? (
-        <Chart key={`${label}/${range}`} points={points} label={label} />
-      ) : (
-        <div className="fd-state">
-          <p>{series?.reason ?? '该区间暂无净值数据。'}</p>
-          {adjusted && nav.data.nav.value && (
-            <Button variant="link" onClick={() => setAdjusted(false)}>
-              查看单位净值
+            <Button
+              variant={!adjusted ? 'secondary' : 'ghost'}
+              aria-pressed={!adjusted}
+              onClick={() => selectBasis(false)}
+            >
+              单位净值
             </Button>
-          )}
+          </div>
+          <div className="fd-segments" role="group" aria-label="图表区间">
+            {ranges.map(([months, title]) => (
+              <Button
+                key={months}
+                variant={range === months ? 'secondary' : 'ghost'}
+                aria-pressed={range === months}
+                onClick={() => {
+                  if (range !== months) {
+                    setRangeMotion((token) => (token ?? 0) + 1)
+                    setRange(months)
+                  }
+                }}
+              >
+                {title}
+              </Button>
+            ))}
+          </div>
         </div>
-      )}
-      <DataSource data={series} />
-
-      <div className="fd-stats" aria-label="基金指标">
-        {ledgerId && (
-          <Metric
-            label="年化收益（XIRR）"
-            data={returns.data?.value?.xirr}
-            pending={returns.isPending}
-            error={returns.error}
-            signed
-          />
+        {nav.isPending ? (
+          <div className="fd-state" role="status">
+            正在读取净值…
+          </div>
+        ) : nav.isError ? (
+          <div className="fd-state fd-error" role="alert">
+            <p>{nav.error.message}</p>
+            <Button variant="link" onClick={() => void nav.refetch()}>
+              重试
+            </Button>
+          </div>
+        ) : points.length ? (
+          <Chart points={points} label={label} rangeMotion={rangeMotion} />
+        ) : (
+          <div className="fd-state">
+            <p>{series?.reason ?? '该区间暂无净值数据。'}</p>
+            {adjusted && nav.data.nav.value && (
+              <Button variant="link" onClick={() => selectBasis(false)}>
+                查看单位净值
+              </Button>
+            )}
+          </div>
         )}
-        <Metric
-          label="历史最大回撤"
-          data={risk.data?.maxDrawdown}
-          pending={risk.isPending}
-          error={risk.error}
-        />
+        <DataSource data={series} />
+
+        <div className="fd-stats" aria-label="基金指标">
+          {ledgerId && (
+            <Metric
+              label="年化收益（XIRR）"
+              data={returns.data?.value?.xirr}
+              pending={returns.isPending}
+              error={returns.error}
+              signed
+            />
+          )}
+          <Metric
+            label="历史最大回撤"
+            data={risk.data?.maxDrawdown}
+            pending={risk.isPending}
+            error={risk.error}
+          />
+        </div>
+        {!ledgerId &&
+          (details ? (
+            <details className="fd-profile">
+              <summary>基金档案</summary>
+              <dl>
+                {fields?.['基金管理人'] && (
+                  <div>
+                    <dt>基金管理人</dt>
+                    <dd>{fields['基金管理人']}</dd>
+                  </div>
+                )}
+                {fields?.['基金经理人'] && (
+                  <div>
+                    <dt>基金经理</dt>
+                    <dd>{fields['基金经理人']}</dd>
+                  </div>
+                )}
+                {details.benchmark && (
+                  <div>
+                    <dt>业绩比较基准</dt>
+                    <dd>{details.benchmark}</dd>
+                  </div>
+                )}
+                {details.trackingTarget && (
+                  <div>
+                    <dt>跟踪标的</dt>
+                    <dd>{details.trackingTarget}</dd>
+                  </div>
+                )}
+              </dl>
+              <DataSource data={info.data} />
+            </details>
+          ) : info.isError ? (
+            <p className="fd-error" role="status">
+              基金档案暂不可用。
+            </p>
+          ) : null)}
       </div>
-      {!ledgerId &&
-        (details ? (
-          <details className="fd-profile">
-            <summary>基金档案</summary>
-            <dl>
-              {fields?.['基金管理人'] && (
-                <div>
-                  <dt>基金管理人</dt>
-                  <dd>{fields['基金管理人']}</dd>
-                </div>
-              )}
-              {fields?.['基金经理人'] && (
-                <div>
-                  <dt>基金经理</dt>
-                  <dd>{fields['基金经理人']}</dd>
-                </div>
-              )}
-              {details.benchmark && (
-                <div>
-                  <dt>业绩比较基准</dt>
-                  <dd>{details.benchmark}</dd>
-                </div>
-              )}
-              {details.trackingTarget && (
-                <div>
-                  <dt>跟踪标的</dt>
-                  <dd>{details.trackingTarget}</dd>
-                </div>
-              )}
-            </dl>
-            <DataSource data={info.data} />
-          </details>
-        ) : info.isError ? (
-          <p className="fd-error" role="status">
-            基金档案暂不可用。
-          </p>
-        ) : null)}
     </div>
   )
 }

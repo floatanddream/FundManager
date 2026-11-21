@@ -33,25 +33,32 @@
   margin-top: 10px;
 }
 
-/* 用淡入提示净值口径或区间已变更，图形本身保持实际数据点。 */
 .fund-detail-chart {
-  animation: nav-reveal 200ms ease-out;
   /* 保持画布在容器内，等 ResizeObserver 完成窄屏重绘。 */
   overflow-x: clip;
 }
 
-@keyframes nav-reveal {
+@media (prefers-reduced-motion: no-preference) {
+  .fd-entry {
+    animation: fund-detail-enter 180ms ease-out;
+  }
+}
+
+@keyframes fund-detail-enter {
   from {
     opacity: 0.55;
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fund-detail-chart {
-    animation: none;
+  .fd-source summary::after,
+  .fd-profile summary::after {
+    transition: none;
   }
 }
 .fd-state {
@@ -79,6 +86,23 @@
 .fd-source summary,
 .fd-profile summary {
   color: var(--primary);
+  cursor: pointer;
+  list-style: none;
+}
+.fd-source summary::-webkit-details-marker,
+.fd-profile summary::-webkit-details-marker {
+  display: none;
+}
+.fd-source summary::after,
+.fd-profile summary::after {
+  content: '⌄';
+  display: inline-block;
+  margin-left: 5px;
+  transition: transform 140ms ease-out;
+}
+.fd-source details[open] > summary::after,
+.fd-profile[open] > summary::after {
+  transform: rotate(180deg);
 }
 .fd-source details p {
   margin-top: 4px;

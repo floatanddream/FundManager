@@ -1,6 +1,7 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Check, ChevronRight, Search } from 'lucide-react'
-import { lazy, Suspense, useDeferredValue, useState } from 'react'
+import { lazy, Suspense, useDeferredValue, useEffect, useState } from 'react'
+import './WorkspaceMotion.css'
 import { api, type Coverage, type OverviewPosition, type Sourced } from './api.ts'
 import { Alert, AlertDescription, AlertTitle } from './components/ui/alert.tsx'
 import { Badge } from './components/ui/badge.tsx'
@@ -156,6 +157,12 @@ function OverviewMetric({
   )
 }
 
+function ConfirmationOverlay({ active }: { active: boolean }) {
+  return active ? (
+    <span key={active ? 'confirmed' : 'idle'} className="confirmation-overlay" aria-hidden="true" />
+  ) : null
+}
+
 /** 右栏的账本金额与左栏读取同一个响应，切换基金时不会串用上一只基金的数据。 */
 function PositionSummary({ position }: { position: OverviewPosition }) {
   return (
@@ -206,12 +213,14 @@ function FundPanel({
   ledgerId,
   position,
   onReconcile,
+  animateEntry,
 }: {
   code?: string
   name?: string
   ledgerId?: string
   position?: OverviewPosition
   onReconcile?: () => void
+  animateEntry?: boolean
 }) {
   return (
     <Card
@@ -225,8 +234,9 @@ function FundPanel({
         <>
           <Suspense
             fallback={
-              <CardContent className="text-muted-foreground" role="status">
-                正在打开基金详情…
+              <CardContent role="status">
+                <h2 className="text-base font-medium">{name ?? code}</h2>
+                <p className="text-muted-foreground">正在打开基金详情…</p>
               </CardContent>
             }
           >
@@ -236,6 +246,7 @@ function FundPanel({
               name={name}
               ledgerId={ledgerId}
               ledgerSummary={position ? <PositionSummary position={position} /> : undefined}
+              animateEntry={animateEntry}
             />
           </Suspense>
           {onReconcile && (
@@ -262,10 +273,12 @@ export function Portfolio({
   ledgerId,
   onSearch,
   onReconcile,
+  confirmedMotion,
 }: {
   ledgerId: string
   onSearch: () => void
   onReconcile: (code: string) => void
+  confirmedMotion?: { id: string; marketValue: boolean; dailyGain: boolean }
 }) {
   const [selected, setSelected] = useState<string>()
   const [showClosed, setShowClosed] = useState(false)
@@ -372,7 +385,11 @@ export function Portfolio({
           <h1>账本总览</h1>
         </div>
         <section className="overview-metrics" aria-label="账本资产和收益">
-          <Card>
+          <Card className="confirmed-metric-card">
+            <ConfirmationOverlay
+              active={Boolean(confirmedMotion?.marketValue)}
+              key={confirmedMotion?.id}
+            />
             <CardContent>
               <OverviewMetric
                 label="基金总市值"
@@ -381,7 +398,11 @@ export function Portfolio({
               />
             </CardContent>
           </Card>
-          <Card>
+          <Card className="confirmed-metric-card">
+            <ConfirmationOverlay
+              active={Boolean(confirmedMotion?.dailyGain)}
+              key={confirmedMotion?.id}
+            />
             <CardContent>
               <OverviewMetric
                 label="当日收益"
@@ -409,7 +430,7 @@ export function Portfolio({
             <AlertTitle>{hasStale ? '部分净值沿用缓存' : '部分持仓数据不完整'}</AlertTitle>
             <AlertDescription>
               <details>
-                <summary>查看受影响基金</summary>
+                <summary className="workspace-disclosure">查看受影响基金</summary>
                 <ul className="list-disc pl-4">
                   {affected.map(({ fundCode, marketValue, dailyGain }) => (
                     <li key={fundCode}>
@@ -466,6 +487,7 @@ export function Portfolio({
                               scrollToDetail()
                             }}
                           >
+                            <Check aria-hidden="true" className="checked-fund-mark size-4" />
                             <span>{names.get(fundCode) ?? fundCode}</span>
                             {names.get(fundCode) && <small>{fundCode}</small>}
                           </Button>
@@ -547,7 +569,25 @@ export function Portfolio({
         ledgerId={ledgerId}
         position={active}
         onReconcile={active ? () => onReconcile(active.fundCode) : undefined}
+        animateEntry={selected !== undefined && selected === active?.fundCode}
       />
+    </div>
+  )
+}
+
+/** 快请求直接显示结果；没有旧结果可占位时，稍等再提供骨架。 */
+function SearchSkeleton() {
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(true), 180)
+    return () => window.clearTimeout(timer)
+  }, [])
+  if (!visible) return null
+  return (
+    <div className="fund-search-skeleton" role="status" aria-label="正在查询基金">
+      <span />
+      <span />
+      <span />
     </div>
   )
 }
@@ -575,8 +615,10 @@ export function FundSearch({
   const search = useQuery({
     queryKey: ['fund-search', query, category],
     queryFn: ({ signal }) => api.funds(query, category, signal),
+    placeholderData: keepPreviousData,
   })
   const results = search.data?.value ?? []
+  const updatingResults = search.isPlaceholderData || term.trim() !== query
 
   return (
     <>
@@ -617,20 +659,23 @@ export function FundSearch({
                 基金类型暂不可用，仍可按名称或代码搜索。
               </p>
             )}
-            {search.data?.stale && (
+            {!updatingResults && search.data?.stale && (
               <p role="status" className="workspace-subtle mt-2">
                 搜索结果沿用缓存（{search.data.dataAsOf}）。
               </p>
             )}
-            {search.data?.loss && (
+            {!updatingResults && search.data?.loss && (
               <p role="status" className="workspace-subtle mt-2">
                 {search.data.loss}
               </p>
             )}
-            {search.isPending ? (
-              <p className="workspace-empty" role="status">
-                正在查询基金…
+            {updatingResults && (
+              <p role="status" className="workspace-subtle mt-2">
+                正在筛选基金…
               </p>
+            )}
+            {search.isPending ? (
+              <SearchSkeleton />
             ) : search.isError ? (
               <div className="workspace-empty">
                 <p role="alert">{search.error.message}</p>
@@ -639,14 +684,18 @@ export function FundSearch({
                 </Button>
               </div>
             ) : results.length ? (
-              <ul className="fund-search-list mt-3">
+              <ul
+                className={`fund-search-list mt-3 ${updatingResults ? 'opacity-60' : 'fund-search-results'}`}
+                key={JSON.stringify([query, category])}
+                inert={updatingResults}
+              >
                 {results.map((fund, index) => {
                   const isSelected = fund.code === selected?.code
                   return (
                     <li key={fund.code}>
                       <Item
                         render={<button type="button" />}
-                        className="cursor-pointer text-left hover:bg-muted motion-reduce:transition-none"
+                        className="fund-search-option cursor-pointer text-left hover:bg-muted"
                         variant={isSelected ? 'muted' : 'default'}
                         aria-pressed={isSelected}
                         onClick={() => {
@@ -668,33 +717,31 @@ export function FundSearch({
                             {fund.code}
                           </ItemDescription>
                         </ItemContent>
-                        {(fund.category || isSelected) && (
-                          <ItemActions as="span" className="ml-auto shrink-0">
-                            {fund.category && (
-                              <Badge
-                                variant="outline"
-                                className="max-w-[9rem] truncate"
-                                title={fund.category}
-                              >
-                                {fund.category}
-                              </Badge>
-                            )}
-                            {isSelected && <Check aria-hidden="true" className="size-4" />}
-                          </ItemActions>
-                        )}
+                        <ItemActions as="span" className="ml-auto shrink-0">
+                          {fund.category && (
+                            <Badge
+                              variant="outline"
+                              className="max-w-[9rem] truncate"
+                              title={fund.category}
+                            >
+                              {fund.category}
+                            </Badge>
+                          )}
+                          <Check aria-hidden="true" className="checked-fund-mark size-4" />
+                        </ItemActions>
                       </Item>
                       {index < results.length - 1 && <ItemSeparator className="my-1" />}
                     </li>
                   )
                 })}
               </ul>
-            ) : (
+            ) : updatingResults ? null : (
               <p className="workspace-empty">{search.data?.reason ?? '没有找到匹配的基金。'}</p>
             )}
           </CardContent>
         </Card>
         <div>
-          <FundPanel code={selected?.code} name={selected?.name} />
+          <FundPanel code={selected?.code} name={selected?.name} animateEntry />
           {selected && (
             <Button variant="secondary" onClick={() => onRecord(selected.code)}>
               {ledgerId ? '录入这只基金的流水' : '新建账本后录入'}
