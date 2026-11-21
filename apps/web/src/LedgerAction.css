@@ -1,53 +1,20 @@
-.ledger-action {
+.ledger-action__panel {
   position: fixed;
   inset: 0 0 0 auto;
   width: min(100%, 480px);
   max-width: none;
   height: 100dvh;
   max-height: none;
+  gap: 0;
   margin: 0;
-  padding: 0;
-  border: 0;
-  color: var(--ink);
-  background: transparent;
-  overflow: visible;
-}
-.ledger-action[open] {
-  display: block;
-}
-.ledger-action::backdrop {
-  background: rgb(13 17 25 / 42%);
-  transition: background-color 160ms ease-out;
-}
-.ledger-action[data-closing]::backdrop {
-  background: transparent;
-}
-.ledger-action[data-closing] .ledger-action__panel {
-  pointer-events: none;
-}
-.ledger-action__scrim {
-  position: fixed;
-  inset: 0;
-}
-.ledger-action__panel {
-  position: relative;
-  z-index: 1;
-  height: 100%;
   overflow-y: auto;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
   padding: 28px 30px 24px;
-  background: var(--surface);
   box-shadow: -18px 0 48px rgb(12 18 30 / 14%);
-  animation: ledger-action-enter 180ms ease-out;
 }
-@keyframes ledger-action-enter {
-  from {
-    transform: translateX(24px);
-    opacity: 0.8;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+.ledger-action__overlay {
+  background: rgb(13 17 25 / 42%);
 }
 .ledger-action__header {
   display: flex;
@@ -61,7 +28,7 @@
   font-size: 12px;
   letter-spacing: 0.08em;
 }
-.ledger-action__header h2 {
+.ledger-action__header .ledger-action__title {
   margin: 0;
   color: var(--ink);
   font-size: 24px;
@@ -77,6 +44,7 @@
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
+  padding: 0;
 }
 .ledger-action__form {
   display: grid;
@@ -183,18 +151,8 @@
   cursor: wait;
 }
 @media (max-width: 520px) {
-  .ledger-action {
+  .ledger-action__panel {
     width: 100%;
-  }
-  .ledger-action__panel {
     padding: 22px 20px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ledger-action::backdrop {
-    transition: none;
-  }
-  .ledger-action__panel {
-    animation: none;
   }
 }

@@ -12,6 +12,7 @@ import {
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { api, type NavPoint, type Sourced } from './api.ts'
+import { Button } from './components/ui/button.tsx'
 import './FundDetail.css'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
@@ -241,18 +242,31 @@ export default function FundDetail({ fundCode, name, ledgerId, ledgerSummary }: 
       {ledgerSummary}
       <div className="fd-chart-controls">
         <div className="fd-segments" role="group" aria-label="净值口径">
-          <button aria-pressed={adjusted} onClick={() => setAdjusted(true)}>
+          <Button
+            variant={adjusted ? 'secondary' : 'ghost'}
+            aria-pressed={adjusted}
+            onClick={() => setAdjusted(true)}
+          >
             复权净值
-          </button>
-          <button aria-pressed={!adjusted} onClick={() => setAdjusted(false)}>
+          </Button>
+          <Button
+            variant={!adjusted ? 'secondary' : 'ghost'}
+            aria-pressed={!adjusted}
+            onClick={() => setAdjusted(false)}
+          >
             单位净值
-          </button>
+          </Button>
         </div>
         <div className="fd-segments" role="group" aria-label="图表区间">
           {ranges.map(([months, title]) => (
-            <button key={months} aria-pressed={range === months} onClick={() => setRange(months)}>
+            <Button
+              key={months}
+              variant={range === months ? 'secondary' : 'ghost'}
+              aria-pressed={range === months}
+              onClick={() => setRange(months)}
+            >
               {title}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -263,9 +277,13 @@ export default function FundDetail({ fundCode, name, ledgerId, ledgerSummary }: 
       ) : nav.isError ? (
         <div className="fd-state fd-error" role="alert">
           <p>{nav.error.message}</p>
-          <button className="workspace-text-button" onClick={() => void nav.refetch()}>
+          <Button
+            variant="link"
+            className="workspace-text-button"
+            onClick={() => void nav.refetch()}
+          >
             重试
-          </button>
+          </Button>
         </div>
       ) : points.length ? (
         <Chart key={`${label}/${range}`} points={points} label={label} />
@@ -273,9 +291,13 @@ export default function FundDetail({ fundCode, name, ledgerId, ledgerSummary }: 
         <div className="fd-state">
           <p>{series?.reason ?? '该区间暂无净值数据。'}</p>
           {adjusted && nav.data.nav.value && (
-            <button className="workspace-text-button" onClick={() => setAdjusted(false)}>
+            <Button
+              variant="link"
+              className="workspace-text-button"
+              onClick={() => setAdjusted(false)}
+            >
               查看单位净值
-            </button>
+            </Button>
           )}
         </div>
       )}

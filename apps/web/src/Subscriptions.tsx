@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { api, type PendingSubscription } from './api.ts'
+import { Button } from './components/ui/button.tsx'
+import { Input } from './components/ui/input.tsx'
 
 /** 待确认申购独立于持仓。确认后同时刷新列表和账本指标。 */
 export function Subscriptions({
@@ -82,9 +84,14 @@ export function Subscriptions({
       {pending.isError ? (
         <p role="alert" className="workspace-error">
           {pending.error.message}{' '}
-          <button className="workspace-text-button" onClick={() => void pending.refetch()}>
+          <Button
+            type="button"
+            variant="link"
+            className="workspace-text-button"
+            onClick={() => void pending.refetch()}
+          >
             重试
-          </button>
+          </Button>
         </p>
       ) : pending.data?.length ? (
         <ul className="subscription-list">
@@ -97,13 +104,15 @@ export function Subscriptions({
                   {order.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
                 </span>
               </div>
-              <button
+              <Button
+                type="button"
+                variant="link"
                 className="workspace-text-button"
                 disabled={quote.isPending || confirm.isPending}
                 onClick={() => openOrder(order)}
               >
                 补充确认信息
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -117,7 +126,7 @@ export function Subscriptions({
           </p>
           <label>
             成交净值日期
-            <input
+            <Input
               type="date"
               min={active.orderDate}
               value={navDate}
@@ -131,7 +140,7 @@ export function Subscriptions({
           </label>
           <label>
             同日顺序号（选填）
-            <input
+            <Input
               type="number"
               min="0"
               step="1"
@@ -171,7 +180,7 @@ export function Subscriptions({
             <>
               <label>
                 实际费用（元，免手续费填 0）
-                <input
+                <Input
                   type="number"
                   min="0"
                   step="0.01"
@@ -184,14 +193,15 @@ export function Subscriptions({
                   required
                 />
               </label>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 className="workspace-button secondary"
                 disabled={!navDate || fee === '' || quote.isPending || confirm.isPending}
                 onClick={() => quote.mutate({ id: active.id, navDate, fee: Number(fee) })}
               >
                 查询并预览
-              </button>
+              </Button>
               {quote.data && (
                 <div className="subscription-preview" role="status">
                   {quote.data.shares == null ? (
@@ -213,7 +223,7 @@ export function Subscriptions({
           ) : (
             <label>
               成交单确认份额
-              <input
+              <Input
                 type="number"
                 step="any"
                 value={shares}
@@ -229,15 +239,17 @@ export function Subscriptions({
             </p>
           )}
           <div className="workspace-actions">
-            <button
+            <Button
               type="button"
+              variant="outline"
               className="workspace-button secondary"
               disabled={confirm.isPending}
               onClick={() => setActive(null)}
             >
               返回
-            </button>
-            <button
+            </Button>
+            <Button
+              type="submit"
               className="workspace-button"
               disabled={
                 confirm.isPending ||
@@ -245,7 +257,7 @@ export function Subscriptions({
               }
             >
               {confirm.isPending ? '正在确认…' : '确认申购'}
-            </button>
+            </Button>
           </div>
         </form>
       )}

@@ -2,6 +2,17 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ChevronRight, Search } from 'lucide-react'
 import { lazy, Suspense, useDeferredValue, useState } from 'react'
 import { api, type Coverage, type OverviewPosition, type Sourced } from './api.ts'
+import { Badge } from './components/ui/badge.tsx'
+import { Button } from './components/ui/button.tsx'
+import { Input } from './components/ui/input.tsx'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './components/ui/table.tsx'
 
 const FundDetail = lazy(() => import('./FundDetail.tsx'))
 const currency = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' })
@@ -89,7 +100,9 @@ function DirectionTags({ code }: { code: string }) {
     <div className="direction-tags">
       {data.value.map((tag) => (
         <details className="direction-label" key={`${tag.kind}/${tag.label}`}>
-          <summary>{tag.label}</summary>
+          <summary>
+            <Badge variant="secondary">{tag.label}</Badge>
+          </summary>
           <small>
             {tag.reference}
             {tag.reportDate && <> · 报告期 {tag.reportDate}</>}
@@ -215,9 +228,9 @@ function FundPanel({
           </Suspense>
           {onReconcile && (
             <div className="detail-action">
-              <button className="workspace-text-button" onClick={onReconcile}>
+              <Button variant="link" className="workspace-text-button" onClick={onReconcile}>
                 核对份额
-              </button>
+              </Button>
             </div>
           )}
         </>
@@ -296,15 +309,15 @@ export function Portfolio({
   /** 通过 aria-sort 把实际排序状态同步给辅助工具。 */
   function sortHeading(field: SortKey, label: string) {
     return (
-      <th
+      <TableHead
         scope="col"
         aria-sort={sort.field === field ? (sort.desc ? 'descending' : 'ascending') : 'none'}
       >
-        <button className="table-sort" onClick={() => changeSort(field)}>
+        <Button className="table-sort" variant="ghost" onClick={() => changeSort(field)}>
           {label}
           {sort.field === field && <span aria-hidden="true">{sort.desc ? '↓' : '↑'}</span>}
-        </button>
-      </th>
+        </Button>
+      </TableHead>
     )
   }
 
@@ -327,9 +340,13 @@ export function Portfolio({
         </div>
         <div className="workspace-panel workspace-empty">
           <p role="alert">{query.error.message}</p>
-          <button className="workspace-button secondary" onClick={() => void query.refetch()}>
+          <Button
+            className="workspace-button secondary"
+            variant="secondary"
+            onClick={() => void query.refetch()}
+          >
             重试
-          </button>
+          </Button>
         </div>
       </>
     )
@@ -400,94 +417,98 @@ export function Portfolio({
         <section className="workspace-panel holdings-panel">
           <h2>我的基金</h2>
           {visible.length ? (
-            <div className="holdings-scroll">
-              <table className="holdings-table">
-                <thead>
-                  <tr>
-                    <th scope="col">基金</th>
-                    <th scope="col">投资方向</th>
-                    {sortHeading('marketValue', '市值')}
-                    {sortHeading('dailyGain', '当日收益')}
-                    {sortHeading('unrealizedGain', '持有收益')}
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((position) => {
-                    const { fundCode, marketValue, dailyGain, unrealizedGain, holdingGainRate } =
-                      position
-                    const isActive = active?.fundCode === fundCode
-                    return (
-                      <tr key={fundCode} data-selected={isActive}>
-                        <th scope="row">
-                          <button
-                            className="fund-row-button"
-                            aria-pressed={isActive}
-                            onClick={() => {
-                              setSelected(fundCode)
-                              scrollToDetail()
-                            }}
-                          >
-                            <span>{names.get(fundCode) ?? fundCode}</span>
-                            {names.get(fundCode) && <small>{fundCode}</small>}
-                          </button>
-                        </th>
-                        <td>
-                          <DirectionTags code={fundCode} />
-                        </td>
-                        <td>
-                          <Money data={marketValue} />
-                        </td>
-                        <td>
-                          <Money data={dailyGain} signed />
-                        </td>
-                        <td>
-                          {position.shares === 0 ? (
-                            <>
-                              <span
-                                className={
-                                  position.realizedGain > 0
-                                    ? 'gain-positive'
-                                    : position.realizedGain < 0
-                                      ? 'gain-negative'
-                                      : undefined
-                                }
-                              >
-                                {currency.format(position.realizedGain)}
+            <Table className="holdings-table" containerClassName="holdings-scroll">
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">基金</TableHead>
+                  <TableHead scope="col">投资方向</TableHead>
+                  {sortHeading('marketValue', '市值')}
+                  {sortHeading('dailyGain', '当日收益')}
+                  {sortHeading('unrealizedGain', '持有收益')}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.map((position) => {
+                  const { fundCode, marketValue, dailyGain, unrealizedGain, holdingGainRate } =
+                    position
+                  const isActive = active?.fundCode === fundCode
+                  return (
+                    <TableRow key={fundCode} data-selected={isActive}>
+                      <TableHead scope="row">
+                        <Button
+                          className="fund-row-button"
+                          variant="ghost"
+                          aria-pressed={isActive}
+                          onClick={() => {
+                            setSelected(fundCode)
+                            scrollToDetail()
+                          }}
+                        >
+                          <span>{names.get(fundCode) ?? fundCode}</span>
+                          {names.get(fundCode) && <small>{fundCode}</small>}
+                        </Button>
+                      </TableHead>
+                      <TableCell>
+                        <DirectionTags code={fundCode} />
+                      </TableCell>
+                      <TableCell>
+                        <Money data={marketValue} />
+                      </TableCell>
+                      <TableCell>
+                        <Money data={dailyGain} signed />
+                      </TableCell>
+                      <TableCell>
+                        {position.shares === 0 ? (
+                          <>
+                            <span
+                              className={
+                                position.realizedGain > 0
+                                  ? 'gain-positive'
+                                  : position.realizedGain < 0
+                                    ? 'gain-negative'
+                                    : undefined
+                              }
+                            >
+                              {currency.format(position.realizedGain)}
+                            </span>
+                            <span className="workspace-subtle">已实现收益</span>
+                          </>
+                        ) : (
+                          <>
+                            <Money data={unrealizedGain} signed />
+                            {holdingGainRate.value !== null && (
+                              <span className="workspace-subtle">
+                                {percentage.format(holdingGainRate.value)}
                               </span>
-                              <span className="workspace-subtle">已实现收益</span>
-                            </>
-                          ) : (
-                            <>
-                              <Money data={unrealizedGain} signed />
-                              {holdingGainRate.value !== null && (
-                                <span className="workspace-subtle">
-                                  {percentage.format(holdingGainRate.value)}
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            )}
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
           ) : (
             <div className="workspace-empty holdings-empty">
               <p>{closed.length ? '当前没有持仓。' : '账本里还没有流水。'}</p>
               {!closed.length && (
-                <button className="workspace-button secondary" onClick={onSearch}>
+                <Button
+                  className="workspace-button secondary"
+                  variant="secondary"
+                  onClick={onSearch}
+                >
                   <Search size={16} aria-hidden="true" />
                   查找基金
-                </button>
+                </Button>
               )}
             </div>
           )}
           {closed.length > 0 && (
             <div className="holdings-footer">
-              <button
+              <Button
                 className="workspace-text-button"
+                variant="link"
                 aria-expanded={showClosed}
                 onClick={() => setShowClosed(!showClosed)}
               >
@@ -497,7 +518,7 @@ export function Portfolio({
                   className={showClosed ? 'is-rotated' : undefined}
                   aria-hidden="true"
                 />
-              </button>
+              </Button>
             </div>
           )}
         </section>
@@ -549,7 +570,7 @@ export function FundSearch({
           <div className="fund-search-fields">
             <div className="workspace-search">
               <Search size={18} aria-hidden="true" />
-              <input
+              <Input
                 type="search"
                 aria-label="基金名称、代码或拼音"
                 placeholder="输入基金名称、代码或拼音"
@@ -594,16 +615,21 @@ export function FundSearch({
           ) : search.isError ? (
             <div className="workspace-empty">
               <p role="alert">{search.error.message}</p>
-              <button className="workspace-button secondary" onClick={() => void search.refetch()}>
+              <Button
+                className="workspace-button secondary"
+                variant="secondary"
+                onClick={() => void search.refetch()}
+              >
                 重试
-              </button>
+              </Button>
             </div>
           ) : results.length ? (
             <ul className="fund-search-list">
               {results.map((fund) => (
                 <li key={fund.code}>
-                  <button
+                  <Button
                     className="search-fund-row"
+                    variant="ghost"
                     aria-pressed={fund.code === selected?.code}
                     onClick={() => {
                       setSelected(fund)
@@ -618,7 +644,7 @@ export function FundSearch({
                       </small>
                     </span>
                     <ChevronRight size={17} aria-hidden="true" />
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -629,12 +655,13 @@ export function FundSearch({
         <div>
           <FundPanel code={selected?.code} name={selected?.name} />
           {selected && (
-            <button
+            <Button
               className="workspace-button search-record"
+              variant="secondary"
               onClick={() => onRecord(selected.code)}
             >
               {ledgerId ? '录入这只基金的流水' : '新建账本后录入'}
-            </button>
+            </Button>
           )}
         </div>
       </div>

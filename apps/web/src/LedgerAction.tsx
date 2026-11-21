@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { api, type TransactionInput } from './api.ts'
+import { Button } from './components/ui/button.tsx'
+import { Input } from './components/ui/input.tsx'
+import { Sheet, SheetContent, SheetTitle } from './components/ui/sheet.tsx'
 import './LedgerAction.css'
 
 type Props = {
@@ -22,14 +25,14 @@ const kinds = [
 const today = () => new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
 /**
- * 使用原生模态抽屉录入流水或核对份额。
+ * 使用 shadcn 抽屉录入流水或核对份额。
  *
  * @param props.onSaved 流水确认写入后刷新账本；对账结果留在抽屉里供核对。
  */
 export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, onSaved }: Props) {
-  const dialog = useRef<HTMLDialogElement>(null)
-  const panel = useRef<HTMLElement>(null)
-  const closing = useRef(false)
+  const afterClose = useRef<(() => void) | null>(null)
+  const [open, setOpen] = useState(true)
+  const codeInput = useRef<HTMLInputElement>(null)
   const [code, setCode] = useState(fundCode)
   const [date, setDate] = useState(today)
   const [kind, setKind] = useState<TransactionInput['kind']>('subscribe')
@@ -46,32 +49,11 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
   const [result, setResult] = useState<Awaited<ReturnType<typeof api.reconcile>>['value']>(null)
   const isSubscriptionDraft = kind === 'subscribe' && !hasStatement
 
-  useEffect(() => {
-    const element = dialog.current
-    element?.showModal()
-    return () => {
-      if (element?.open) element.close()
-    }
-  }, [])
-
-  /** 保持模态状态直到退场结束，让焦点在抽屉隐藏后再回到触发控件。 */
-  function dismiss(afterClose: () => void) {
-    if (closing.current) return
-    closing.current = true
-    const element = panel.current
-    if (!element || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      afterClose()
-      return
-    }
-    dialog.current?.setAttribute('data-closing', '')
-    const exit = element.animate(
-      [
-        { transform: 'translateX(0)', opacity: 1 },
-        { transform: 'translateX(36px)', opacity: 0 },
-      ],
-      { duration: 160, easing: 'ease-in', fill: 'forwards' },
-    )
-    void exit.finished.then(afterClose, afterClose)
+  /** 等 Sheet 播完退场动效、归还焦点后再卸载整个表单。 */
+  function dismiss(callback: () => void) {
+    if (afterClose.current) return
+    afterClose.current = callback
+    setOpen(false)
   }
 
   /** 手工关闭时保留正在提交的表单，以便展示失败原因。 */
@@ -82,7 +64,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
   /** 让后端执行账务校验，校验失败时保留填写值供用户修改。 */
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (busy || closing.current) return
+    if (busy || afterClose.current) return
     setBusy(true)
     setError('')
     setResult(null)
@@ -146,43 +128,51 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
             : `将写入：折算比例 ${ratio || '0'}，金额 0。`
 
   return (
-    <dialog
-      ref={dialog}
-      className="ledger-action"
-      aria-labelledby="ledger-action-title"
-      onCancel={(event) => {
-        event.preventDefault()
-        close()
+    <Sheet
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) close()
+      }}
+      onOpenChangeComplete={(nextOpen) => {
+        if (!nextOpen) afterClose.current?.()
       }}
     >
-      <div className="ledger-action__scrim" onClick={close} aria-hidden="true" />
-      <section className="ledger-action__panel" ref={panel}>
+      <SheetContent
+        className="ledger-action__panel"
+        overlayClassName="ledger-action__overlay"
+        showCloseButton={false}
+        initialFocus={codeInput}
+      >
         <header className="ledger-action__header">
           <div>
             <p className="ledger-action__eyebrow">账本操作</p>
-            <h2 id="ledger-action-title">{mode === 'transaction' ? '录入流水' : '份额对账'}</h2>
+            <SheetTitle className="ledger-action__title">
+              {mode === 'transaction' ? '录入流水' : '份额对账'}
+            </SheetTitle>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
             className="ledger-action__close"
             onClick={close}
             aria-label="关闭"
             disabled={busy}
           >
             ×
-          </button>
+          </Button>
         </header>
         <form onSubmit={submit} className="ledger-action__form">
           <label>
             基金代码
-            <input
+            <Input
               value={code}
               onChange={(e) => setCode(e.target.value)}
               inputMode="numeric"
               pattern="[0-9]{6}"
               maxLength={6}
               required
-              autoFocus
+              data-ledger-autofocus
+              ref={codeInput}
               placeholder="例如 011609"
             />
           </label>
@@ -205,13 +195,14 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                 </select>
               </label>
               {kind === 'subscribe' && (
-                <button
+                <Button
+                  variant="link"
                   className="workspace-text-button"
                   type="button"
                   onClick={() => setHasStatement(!hasStatement)}
                 >
                   {hasStatement ? '返回金额申购' : '已有回单，直接入账'}
-                </button>
+                </Button>
               )}
               <label>
                 {isSubscriptionDraft
@@ -219,7 +210,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                   : kind === 'subscribe'
                     ? '成交净值日期'
                     : '发生日期'}
-                <input
+                <Input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
@@ -235,7 +226,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                       : kind === 'dividend_cash'
                         ? '现金分红金额'
                         : '红利再投金额'}
-                  <input
+                  <Input
                     type="number"
                     min={kind === 'subscribe' ? '0.01' : '0'}
                     step="0.01"
@@ -252,7 +243,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                     : kind === 'redeem'
                       ? '赎回份额'
                       : '增加份额'}
-                  <input
+                  <Input
                     type="number"
                     min="0"
                     step="any"
@@ -265,7 +256,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
               {kind === 'split' && (
                 <label>
                   折算比例
-                  <input
+                  <Input
                     type="number"
                     min="0.00000001"
                     step="any"
@@ -280,7 +271,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                 <>
                   <label>
                     同日顺序号
-                    <input
+                    <Input
                       type="number"
                       min="0"
                       step="1"
@@ -295,7 +286,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                   </p>
                   <label>
                     备注 <span className="ledger-action__optional">选填</span>
-                    <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
+                    <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
                   </label>
                 </>
               )}
@@ -305,7 +296,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
             <>
               <label>
                 平台实际份额
-                <input
+                <Input
                   type="number"
                   min="0"
                   step="any"
@@ -316,7 +307,7 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
               </label>
               <label>
                 对账截止日 <span className="ledger-action__optional">选填，默认今天</span>
-                <input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+                <Input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
               </label>
               <p className="ledger-action__hint">
                 对账只比较平台份额与流水推导份额并显示差异，不会自动修改账本。
@@ -342,15 +333,16 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
             </section>
           )}
           <footer className="ledger-action__footer">
-            <button
+            <Button
               type="button"
+              variant="outline"
               className="ledger-action__secondary"
               onClick={close}
               disabled={busy}
             >
               取消
-            </button>
-            <button type="submit" className="ledger-action__primary" disabled={busy}>
+            </Button>
+            <Button type="submit" className="ledger-action__primary" disabled={busy}>
               {busy
                 ? '处理中…'
                 : mode === 'transaction'
@@ -358,10 +350,10 @@ export default function LedgerAction({ mode, ledgerId, fundCode = '', onClose, o
                     ? '保存待确认'
                     : '确认录入'
                   : '开始对账'}
-            </button>
+            </Button>
           </footer>
         </form>
-      </section>
-    </dialog>
+      </SheetContent>
+    </Sheet>
   )
 }

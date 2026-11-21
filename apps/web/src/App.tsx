@@ -9,6 +9,8 @@ import { ChevronDown, Plus } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api } from './api.ts'
+import { Button } from './components/ui/button.tsx'
+import { Input } from './components/ui/input.tsx'
 import { FundSearch, Portfolio } from './Workspaces.tsx'
 import {
   applyTheme,
@@ -59,7 +61,7 @@ function LedgerSetup({
       <p>账本中的流水和持仓保存在本机。</p>
       <form onSubmit={submit}>
         <label htmlFor="ledger-name">账本名称</label>
-        <input
+        <Input
           id="ledger-name"
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -72,13 +74,22 @@ function LedgerSetup({
         )}
         <div className="workspace-actions">
           {onCancel && (
-            <button type="button" className="workspace-button secondary" onClick={onCancel}>
+            <Button
+              type="button"
+              variant="outline"
+              className="workspace-button secondary"
+              onClick={onCancel}
+            >
               取消
-            </button>
+            </Button>
           )}
-          <button className="workspace-button" disabled={!name.trim() || create.isPending}>
+          <Button
+            type="submit"
+            className="workspace-button"
+            disabled={!name.trim() || create.isPending}
+          >
             {create.isPending ? '正在创建…' : '创建账本'}
-          </button>
+          </Button>
         </div>
       </form>
     </section>
@@ -134,9 +145,13 @@ function Workspace({
     <>
       <header className="workspace-header">
         <div className="workspace-toolbar">
-          <button className="workspace-wordmark" onClick={() => setTab('portfolio')}>
+          <Button
+            variant="ghost"
+            className="workspace-wordmark h-auto p-0 hover:bg-transparent"
+            onClick={() => setTab('portfolio')}
+          >
             FundManager
-          </button>
+          </Button>
           <div className="workspace-ledger">
             <select
               aria-label="当前账本"
@@ -164,27 +179,31 @@ function Workspace({
             <ChevronDown size={15} aria-hidden="true" />
           </div>
           <nav aria-label="主导航" className="workspace-nav">
-            <button
+            <Button
+              variant="ghost"
+              className="h-auto rounded-none hover:bg-transparent"
               aria-current={tab === 'portfolio' ? 'page' : undefined}
               onClick={() => setTab('portfolio')}
             >
               组合
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-auto rounded-none hover:bg-transparent"
               aria-current={tab === 'funds' ? 'page' : undefined}
               onClick={() => setTab('funds')}
             >
               基金查询
-            </button>
+            </Button>
           </nav>
-          <button
+          <Button
             className="workspace-button toolbar-action"
             disabled={ledgers.isPending || ledgers.isError}
             onClick={() => openTransaction()}
           >
             <Plus size={17} aria-hidden="true" />
             录入流水
-          </button>
+          </Button>
           <select
             className="theme-select"
             aria-label="主题模式"
@@ -202,9 +221,14 @@ function Workspace({
         {notice && (
           <div className="workspace-notice" role="status">
             {notice}
-            <button aria-label="关闭提示" onClick={() => setNotice('')}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="关闭提示"
+              onClick={() => setNotice('')}
+            >
               ×
-            </button>
+            </Button>
           </div>
         )}
         {tab === 'funds' ? (
@@ -223,12 +247,13 @@ function Workspace({
             ) : ledgers.isError ? (
               <div className="workspace-panel workspace-empty">
                 <p role="alert">{ledgers.error.message}</p>
-                <button
+                <Button
+                  variant="outline"
                   className="workspace-button secondary"
                   onClick={() => void ledgers.refetch()}
                 >
                   重试
-                </button>
+                </Button>
               </div>
             ) : creating || !ledger ? (
               <LedgerSetup

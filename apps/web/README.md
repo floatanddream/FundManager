@@ -10,4 +10,6 @@ pnpm dev
 
 首次打开可创建本地账本。通过基金查询进入详情，再录入第一笔流水。持仓页可查看净值、收益与风险指标，并核对平台份额。
 
+工作台使用 shadcn/ui 的 Base Nova 组件。组件源码位于 `src/components/ui/`，主题颜色与工作台共用，切换亮色或暗色时一起更新。
+
 运行 `pnpm --filter web build` 构建静态文件，输出位于 `apps/web/dist`。
